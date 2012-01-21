@@ -20,16 +20,16 @@ static const unsigned char initial_permutation_right[32] = {
     62, 54, 46, 38, 30, 22, 14, 6
 };
 
-// Inverse of INITIAL_PERMUTATION.  Applied once at the end of the algorithm.
+// Inverse of initial_permutation.  Applied once at the end of the algorithm.
 static const unsigned char final_permutation[64] = {
-    39, 7, 47, 15, 55, 23, 63, 31,
-    38, 6, 46, 14, 54, 22, 62, 30,
-    37, 5, 45, 13, 53, 21, 61, 29,
-    36, 4, 44, 12, 52, 20, 60, 28,
-    35, 3, 43, 11, 51, 19, 59, 27,
-    34, 2, 42, 10, 50, 18, 58, 26,
-    33, 1, 41,  9, 49, 17, 57, 25,
-    32, 0, 40,  8, 48, 16, 56, 24
+    7, 39, 15, 47, 23, 55, 31, 63,
+    6, 38, 14, 46, 22, 54, 30, 62,
+    5, 37, 13, 45, 21, 53, 29, 61,
+    4, 36, 12, 44, 20, 52, 28, 60,
+    3, 35, 11, 43, 19, 51, 27, 59,
+    2, 34, 10, 42, 18, 50, 26, 58,
+    1, 33,  9, 41, 17, 49, 25, 57,
+    0, 32,  8, 40, 16, 48, 24, 56
 };
 
 // Applied to the half-block at the beginning of the Fiestel function.
@@ -306,10 +306,9 @@ void dsa_feistel(const unsigned char input[4], const unsigned char subkey[6], un
 void dsa_encrypt(unsigned char block[8], unsigned char key[8], unsigned char output[8]) {
     // TODO: This whole program could probably benifit from using larger
     //       datatypes that char.
-    unsigned char key_halves[7];  // left key + right key
-    unsigned char key_shifted[7];
+    unsigned char key_halves_a[7];  // left key + right key
+    unsigned char key_halves_b[7];  // Also left key + right key
     unsigned char subkey[6];
-    unsigned char temp_block[4];
     unsigned char fiestel_output[4];
 
     // left_block and right_block must be beside eachother in memory, so the
@@ -324,27 +323,35 @@ void dsa_encrypt(unsigned char block[8], unsigned char key[8], unsigned char out
     // TODO: Pre shift permuted_choice_1 to eliminate left shift to generate
     //       the first subkey.  Or maybe even have a lookup table for each
     //       subkey.
-    permute(key, permuted_choice_1, key_halves, 7);
+    permute(key, permuted_choice_1, key_halves_a, 7);
 
-    for (int i=0; i<16; i++) {
+    // Calculate 16 Rounds
+    // Each loop iteration calculates two rounds.  This way there are no
+    // memcoppies at the end of each round to for example switch right_block
+    // and left_block.
+    for (int i=0; i<16; i+=2) {
 
-        // Generate subkey
-        dsa_key_shift(key_halves, key_shifted, key_shift_amounts[i]);
-        memcpy(key_halves, key_shifted, 7);
-        permute(key_halves, permuted_choice_2, subkey, 6);
+        // Generate key (even round)
+        dsa_key_shift(key_halves_a, key_halves_b, key_shift_amounts[i]);
+        permute(key_halves_b, permuted_choice_2, subkey, 6);
 
-        memcpy(temp_block, right_block, 4);
+        // Round calculation (even round)
         dsa_feistel(right_block, subkey, fiestel_output);
-        xor(fiestel_output, left_block, right_block, 4);
-        memcpy(left_block, temp_block, 4);
+        xor(fiestel_output, left_block, left_block, 4);
+
+        // Generate key (odd round)
+        dsa_key_shift(key_halves_b, key_halves_a, key_shift_amounts[i+1]);
+        permute(key_halves_a, permuted_choice_2, subkey, 6);
+
+        // Round calculation (odd round)
+        dsa_feistel(left_block, subkey, fiestel_output);
+        xor(fiestel_output, right_block, right_block, 4);
 
     }
 
     // Switch back left and right block
-    // TODO: Instead of switching, change the final permutation
-    memcpy(temp_block, left_block, 4);
-    memcpy(left_block, right_block, 4);
-    memcpy(right_block, temp_block, 4);
+    // This step is skipped, since the final permutation has been modified to
+    // account for it.
 
     permute(left_block, final_permutation, output, 8);
 
