@@ -185,7 +185,7 @@ char* bin_to_string(const unsigned char input[], int nbytes) {
     #undef MAX_BYTES
 }
 
-void print_hex(unsigned char input[], int nbytes) {
+void print_hex(unsigned char input[], unsigned char nbytes) {
     printf("%s", bin_to_string(input, nbytes));
 }
 
@@ -196,17 +196,18 @@ unsigned char* hexstr_to_bin(unsigned char* input, unsigned char length) {
 */
 
 void xor(const unsigned char* block_a, const unsigned char* block_b, unsigned char* output, unsigned char nbytes) {
-    for (int i=0; i<nbytes; i++) {
+    for (unsigned char i=0; i<nbytes; i++) {
         output[i] = block_a[i] ^ block_b[i];
     }
 }
 
-void permute(const unsigned char* input, const unsigned char* table, unsigned char* output, unsigned char nbytes) {
+void permute(const unsigned char* input, const unsigned char* table,
+             unsigned char* output, unsigned char nbytes) {
     const unsigned char* table_cell = table;
 
-    for (int i=0; i<nbytes; i++) {
+    for (unsigned char i=0; i<nbytes; i++) {
         unsigned char result_byte = 0x00;
-        for (int j=0; j<8; j++) {
+        for (unsigned char j=0; j<8; j++) {
 
             // Retrieve result_bit from lookup and store in result_byte
             unsigned char bit_pos = *table_cell % 8;
@@ -224,12 +225,12 @@ void permute(const unsigned char* input, const unsigned char* table, unsigned ch
  * The key given is both halves of the key.  We shift each half of the key to
  * the left separately.
  */
-void dsa_key_shift(unsigned char key[7], unsigned char output[7], unsigned char amount) {
+void des_key_shift(unsigned char key[7], unsigned char output[7], unsigned char amount) {
     unsigned char mask;
 
     // Shift bytes circularly.
     // Last byte will be handled specially.
-    for (int i=0; i<7; i++) {
+    for (unsigned char i=0; i<7; i++) {
         output[i] = (key[i] << amount) | (key[i+1] >> (8-amount));
     }
 
@@ -253,7 +254,7 @@ void dsa_key_shift(unsigned char key[7], unsigned char output[7], unsigned char 
 
 }
 
-void dsa_substitution_box(const unsigned char input[6], unsigned char output[4]) {
+void des_substitution_box(const unsigned char input[6], unsigned char output[4]) {
     unsigned char input_byte;
 
     // S-Box 0
@@ -290,7 +291,7 @@ void dsa_substitution_box(const unsigned char input[6], unsigned char output[4])
 
 }
 
-void dsa_feistel(const unsigned char input[4], const unsigned char subkey[6], unsigned char output[4]) {
+void des_feistel(const unsigned char input[4], const unsigned char subkey[6], unsigned char output[4]) {
     unsigned char expanded[6];
     unsigned char sbox_output[4];
 
@@ -298,12 +299,12 @@ void dsa_feistel(const unsigned char input[4], const unsigned char subkey[6], un
     permute(input, expansion_permutation, expanded, 6);
     // TODO: Can xor and sbox be combined?
     xor(expanded, subkey, expanded, 6);
-    dsa_substitution_box(expanded, sbox_output);
+    des_substitution_box(expanded, sbox_output);
     permute(sbox_output, feistel_end_permutation, output, 4);
 
 }
 
-void dsa_encrypt(unsigned char block[8], unsigned char key[8], unsigned char output[8]) {
+void des_encrypt(unsigned char block[8], unsigned char key[8], unsigned char output[8]) {
     // TODO: This whole program could probably benifit from using larger
     //       datatypes that char.
     unsigned char key_halves_a[7];  // left key + right key
@@ -329,22 +330,22 @@ void dsa_encrypt(unsigned char block[8], unsigned char key[8], unsigned char out
     // Each loop iteration calculates two rounds.  This way there are no
     // memcoppies at the end of each round to for example switch right_block
     // and left_block.
-    for (int i=0; i<16; i+=2) {
+    for (unsigned char i=0; i<16; i+=2) {
 
         // Generate key (even round)
-        dsa_key_shift(key_halves_a, key_halves_b, key_shift_amounts[i]);
+        des_key_shift(key_halves_a, key_halves_b, key_shift_amounts[i]);
         permute(key_halves_b, permuted_choice_2, subkey, 6);
 
         // Round calculation (even round)
-        dsa_feistel(right_block, subkey, fiestel_output);
+        des_feistel(right_block, subkey, fiestel_output);
         xor(fiestel_output, left_block, left_block, 4);
 
         // Generate key (odd round)
-        dsa_key_shift(key_halves_b, key_halves_a, key_shift_amounts[i+1]);
+        des_key_shift(key_halves_b, key_halves_a, key_shift_amounts[i+1]);
         permute(key_halves_a, permuted_choice_2, subkey, 6);
 
         // Round calculation (odd round)
-        dsa_feistel(left_block, subkey, fiestel_output);
+        des_feistel(left_block, subkey, fiestel_output);
         xor(fiestel_output, right_block, right_block, 4);
 
     }
@@ -364,7 +365,7 @@ int main() {
     unsigned char ciphertext[8];
 
     for (int i=0; i<1000000; i++) {
-        dsa_encrypt(plaintext, key, ciphertext);
+        des_encrypt(plaintext, key, ciphertext);
     }
 
     printf("%s\n", bin_to_string(ciphertext, 8));
