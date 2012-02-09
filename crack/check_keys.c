@@ -17,9 +17,16 @@
 #define _BSD_SOURCE 1
 #include <endian.h>  // Endian swapping routines
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
+
+// Number of bits that will be searched.  The least significant NUM_CHUNK_BITS
+// in the key space will be exhaustively searched.  Must be at least 6, since
+// 64 decryptions are done simultaneously.
+#define NUM_CHUNK_BITS 28
 
 static const unsigned char left_block_order[32] = {
     57, 49, 41, 33, 25, 17,  9, 1,
@@ -79,168 +86,169 @@ static const unsigned char feistel_output_order[32] = {
 
 /*
  * Each of these 16 arrays represents which bits from the key make up the ith
- * subkey.
+ * subkey.  These indexes are based on a 56 bit key (with the parity bits taken
+ * out).  The subkey order is reversed for decryption.
  */
 static const unsigned char key_bit_orders[16][48] = {
-    { // Subkey 0
-         9, 50, 33, 59, 48, 16,
-        32, 56,  1,  8, 18, 41,
-         2, 34, 25, 24, 43, 57,
-        58,  0, 35, 26, 17, 40,
-        21, 27, 38, 53, 36,  3,
-        46, 29,  4, 52, 22, 28,
-        60, 20, 37, 62, 14, 19,
-        44, 13, 12, 61, 54, 30
+    {  // Subkey 15
+         15, 51, 36,  2, 49, 21,
+         35, 31,  8, 14, 23, 43,
+          9, 37, 29, 28, 45,  0,
+          1,  7, 38, 30, 22, 42,
+         26,  4, 41, 54, 39, 10,
+         48, 33, 11, 53, 27, 32,
+          5, 25, 40,  3, 20, 24,
+         46, 19, 18,  6, 55, 34,
     },
-    { // Subkey 1
-         1, 42, 25, 51, 40,  8,
-        24, 48, 58,  0, 10, 33,
-        59, 26, 17, 16, 35, 49,
-        50, 57, 56, 18,  9, 32,
-        13, 19, 30, 45, 28, 62,
-        38, 21, 27, 44, 14, 20,
-        52, 12, 29, 54,  6, 11,
-        36,  5,  4, 53, 46, 22
+    {  // Subkey 14
+         22,  1, 43,  9, 31, 28,
+         42, 38, 15, 21, 30, 50,
+         16, 44, 36, 35, 52,  7,
+          8, 14, 45, 37, 29, 49,
+         33, 11, 48,  6, 46, 17,
+         55, 40, 18,  5, 34, 39,
+         12, 32, 47, 10, 27,  4,
+         53, 26, 25, 13,  3, 41,
     },
-    { // Subkey 2
-        50, 26,  9, 35, 24, 57,
-         8, 32, 42, 49, 59, 17,
-        43, 10,  1,  0, 48, 33,
-        34, 41, 40,  2, 58, 16,
-        60,  3, 14, 29, 12, 46,
-        22,  5, 11, 28, 61,  4,
-        36, 27, 13, 38, 53, 62,
-        20, 52, 19, 37, 30, 6
+    {  // Subkey 13
+         36, 15,  0, 23, 45, 42,
+         31, 52, 29, 35, 44,  7,
+         30,  1, 50, 49,  9, 21,
+         22, 28,  2, 51, 43, 38,
+         47, 25,  3, 20,  5,  4,
+         10, 54, 32, 19, 48, 53,
+         26, 46,  6, 24, 41, 18,
+         12, 40, 39, 27, 17, 55,
     },
-    { // Subkey 3
-        34, 10, 58, 48,  8, 41,
-        57, 16, 26, 33, 43,  1,
-        56, 59, 50, 49, 32, 17,
-        18, 25, 24, 51, 42,  0,
-        44, 54, 61, 13, 27, 30,
-         6, 52, 62, 12, 45, 19,
-        20, 11, 60, 22, 37, 46,
-         4, 36,  3, 21, 14, 53
+    {  // Subkey 12
+         50, 29, 14, 37,  2, 31,
+         45,  9, 43, 49,  1, 21,
+         44, 15,  7, 38, 23, 35,
+         36, 42, 16,  8,  0, 52,
+          6, 39, 17, 34, 19, 18,
+         24, 13, 46, 33,  3, 12,
+         40,  5, 20, 11, 55, 32,
+         26, 54, 53, 41,  4, 10,
     },
-    { // Subkey 4
-        18, 59, 42, 32, 57, 25,
-        41,  0, 10, 17, 56, 50,
-        40, 43, 34, 33, 16,  1,
-         2,  9,  8, 35, 26, 49,
-        28, 38, 45, 60, 11, 14,
-        53, 36, 46, 27, 29,  3,
-         4, 62, 44,  6, 21, 30,
-        19, 20, 54,  5, 61, 37
+    {  // Subkey 11
+          7, 43, 28, 51, 16, 45,
+          2, 23,  0, 38, 15, 35,
+          1, 29, 21, 52, 37, 49,
+         50, 31, 30, 22, 14,  9,
+         20, 53,  4, 48, 33, 32,
+         11, 27,  5, 47, 17, 26,
+         54, 19, 34, 25, 10, 46,
+         40, 13, 12, 55, 18, 24,
     },
-    { // Subkey 5
-         2, 43, 26, 16, 41,  9,
-        25, 49, 59,  1, 40, 34,
-        24, 56, 18, 17,  0, 50,
-        51, 58, 57, 48, 10, 33,
-        12, 22, 29, 44, 62, 61,
-        37, 20, 30, 11, 13, 54,
-        19, 46, 28, 53,  5, 14,
-         3,  4, 38, 52, 45, 21
+    {  // Subkey 10
+         21,  0, 42,  8, 30,  2,
+         16, 37, 14, 52, 29, 49,
+         15, 43, 35,  9, 51, 38,
+          7, 45, 44, 36, 28, 23,
+         34, 12, 18,  3, 47, 46,
+         25, 41, 19,  6,  4, 40,
+         13, 33, 48, 39, 24,  5,
+         54, 27, 26, 10, 32, 11,
     },
-    { // Subkey 6
-        51, 56, 10,  0, 25, 58,
-         9, 33, 43, 50, 24, 18,
-         8, 40,  2,  1, 49, 34,
-        35, 42, 41, 32, 59, 17,
-        27,  6, 13, 28, 46, 45,
-        21,  4, 14, 62, 60, 38,
-         3, 30, 12, 37, 52, 61,
-        54, 19, 22, 36, 29,  5
+    {  // Subkey 9
+         35, 14, 31, 22, 44, 16,
+         30, 51, 28,  9, 43, 38,
+         29,  0, 49, 23,  8, 52,
+         21,  2,  1, 50, 42, 37,
+         48, 26, 32, 17,  6,  5,
+         39, 55, 33, 20, 18, 54,
+         27, 47,  3, 53, 11, 19,
+         13, 41, 40, 24, 46, 25,
     },
-    { // Subkey 7
-        35, 40, 59, 49,  9, 42,
-        58, 17, 56, 34,  8,  2,
-        57, 24, 51, 50, 33, 18,
-        48, 26, 25, 16, 43,  1,
-        11, 53, 60, 12, 30, 29,
-         5, 19, 61, 46, 44, 22,
-        54, 14, 27, 21, 36, 45,
-        38,  3,  6, 20, 13, 52
+    {  // Subkey 8
+         49, 28, 45, 36,  1, 30,
+         44,  8, 42, 23,  0, 52,
+         43, 14, 38, 37, 22,  9,
+         35, 16, 15,  7, 31, 51,
+          3, 40, 46,  4, 20, 19,
+         53, 10, 47, 34, 32, 13,
+         41,  6, 17, 12, 25, 33,
+         27, 55, 54, 11,  5, 39,
     },
-    { // Subkey 8
-        56, 32, 51, 41,  1, 34,
-        50,  9, 48, 26,  0, 59,
-        49, 16, 43, 42, 25, 10,
-        40, 18, 17,  8, 35, 58,
-         3, 45, 52,  4, 22, 21,
-        60, 11, 53, 38, 36, 14,
-        46,  6, 19, 13, 28, 37,
-        30, 62, 61, 12,  5, 44
+    {  // Subkey 7
+         31, 35, 52, 43,  8, 37,
+         51, 15, 49, 30,  7,  2,
+         50, 21, 45, 44, 29, 16,
+         42, 23, 22, 14, 38,  1,
+         10, 47, 53, 11, 27, 26,
+          5, 17, 54, 41, 39, 20,
+         48, 13, 24, 19, 32, 40,
+         34,  3,  6, 18, 12, 46,
     },
-    { // Subkey 9
-        40, 16, 35, 25, 50, 18,
-        34, 58, 32, 10, 49, 43,
-        33,  0, 56, 26,  9, 59,
-        24,  2,  1, 57, 48, 42,
-        54, 29, 36, 19,  6,  5,
-        44, 62, 37, 22, 20, 61,
-        30, 53,  3, 60, 12, 21,
-        14, 46, 45, 27, 52, 28
+    {  // Subkey 6
+         45, 49,  9,  0, 22, 51,
+          8, 29, 38, 44, 21, 16,
+          7, 35,  2,  1, 43, 30,
+         31, 37, 36, 28, 52, 15,
+         24,  6, 12, 25, 41, 40,
+         19,  4, 13, 55, 53, 34,
+          3, 27, 11, 33, 46, 54,
+         48, 17, 20, 32, 26,  5,
     },
-    { // Subkey 10
-        24,  0, 48,  9, 34,  2,
-        18, 42, 16, 59, 33, 56,
-        17, 49, 40, 10, 58, 43,
-         8, 51, 50, 41, 32, 26,
-        38, 13, 20,  3, 53, 52,
-        28, 46, 21,  6,  4, 45,
-        14, 37, 54, 44, 27,  5,
-        61, 30, 29, 11, 36, 12
+    {  // Subkey 5
+          2, 38, 23, 14, 36,  8,
+         22, 43, 52,  1, 35, 30,
+         21, 49, 16, 15,  0, 44,
+         45, 51, 50, 42,  9, 29,
+         11, 20, 26, 39, 55, 54,
+         33, 18, 27, 10, 12, 48,
+         17, 41, 25, 47,  5, 13,
+          3,  4, 34, 46, 40, 19,
     },
-    { // Subkey 11
-         8, 49, 32, 58, 18, 51,
-         2, 26,  0, 43, 17, 40,
-         1, 33, 24, 59, 42, 56,
-        57, 35, 34, 25, 16, 10,
-        22, 60,  4, 54, 37, 36,
-        12, 30,  5, 53, 19, 29,
-        61, 21, 38, 28, 11, 52,
-        45, 14, 13, 62, 20, 27
+    {  // Subkey 4
+         16, 52, 37, 28, 50, 22,
+         36,  0,  9, 15, 49, 44,
+         35, 38, 30, 29, 14,  1,
+          2,  8,  7, 31, 23, 43,
+         25, 34, 40, 53, 10, 13,
+         47, 32, 41, 24, 26,  3,
+          4, 55, 39,  6, 19, 27,
+         17, 18, 48,  5, 54, 33,
     },
-    { // Subkey 12
-        57, 33, 16, 42,  2, 35,
-        51, 10, 49, 56,  1, 24,
-        50, 17,  8, 43, 26, 40,
-        41, 48, 18,  9,  0, 59,
-         6, 44, 19, 38, 21, 20,
-        27, 14, 52, 37,  3, 13,
-        45,  5, 22, 12, 62, 36,
-        29, 61, 60, 46,  4, 11
+    {  // Subkey 3
+         30,  9, 51, 42,  7, 36,
+         50, 14, 23, 29, 38,  1,
+         49, 52, 44, 43, 28, 15,
+         16, 22, 21, 45, 37,  0,
+         39, 48, 54, 12, 24, 27,
+          6, 46, 55, 11, 40, 17,
+         18, 10, 53, 20, 33, 41,
+          4, 32,  3, 19, 13, 47,
     },
-    { // Subkey 13
-        41, 17,  0, 26, 51, 48,
-        35, 59, 33, 40, 50,  8,
-        34,  1, 57, 56, 10, 24,
-        25, 32,  2, 58, 49, 43,
-        53, 28,  3, 22,  5,  4,
-        11, 61, 36, 21, 54, 60,
-        29, 52,  6, 27, 46, 20,
-        13, 45, 44, 30, 19, 62
+    {  // Subkey 2
+         44, 23,  8, 31, 21, 50,
+          7, 28, 37, 43, 52, 15,
+         38,  9,  1,  0, 42, 29,
+         30, 36, 35,  2, 51, 14,
+         53,  3, 13, 26, 11, 41,
+         20,  5, 10, 25, 54,  4,
+         32, 24, 12, 34, 47, 55,
+         18, 46, 17, 33, 27,  6,
     },
-    { // Subkey 14
-        25,  1, 49, 10, 35, 32,
-        48, 43, 17, 24, 34, 57,
-        18, 50, 41, 40, 59,  8,
-         9, 16, 51, 42, 33, 56,
-        37, 12, 54,  6, 52, 19,
-        62, 45, 20,  5, 38, 44,
-        13, 36, 53, 11, 30,  4,
-        60, 29, 28, 14,  3, 46
+    {  // Subkey 1
+          1, 37, 22, 45, 35,  7,
+         21, 42, 51,  0,  9, 29,
+         52, 23, 15, 14, 31, 43,
+         44, 50, 49, 16,  8, 28,
+         12, 17, 27, 40, 25, 55,
+         34, 19, 24, 39, 13, 18,
+         46, 11, 26, 48,  6, 10,
+         32,  5,  4, 47, 41, 20,
     },
-    { // Subkey 15
-        17, 58, 41,  2, 56, 24,
-        40, 35,  9, 16, 26, 49,
-        10, 42, 33, 32, 51,  0,
-         1,  8, 43, 34, 25, 48,
-        29,  4, 46, 61, 44, 11,
-        54, 37, 12, 60, 30, 36,
-         5, 28, 45,  3, 22, 27,
-        52, 21, 20,  6, 62, 38
+    {  // Subkey 0
+          8, 44, 29, 52, 42, 14,
+         28, 49,  1,  7, 16, 36,
+          2, 30, 22, 21, 38, 50,
+         51,  0, 31, 23, 15, 35,
+         19, 24, 34, 47, 32,  3,
+         41, 26,  4, 46, 20, 25,
+         53, 18, 33, 55, 13, 17,
+         39, 12, 11, 54, 48, 27,
     }
 };
 
@@ -265,7 +273,7 @@ void print_uint64(uint64_t input) {
     printf("\n");
 }
 
-void print_uint64_block(uint64_t inputs[64]) {
+void print_uint64_block(const uint64_t inputs[64]) {
     for (int inputnum=0; inputnum<64; inputnum++) {
         uint64_t input = htobe64(inputs[inputnum]);
         unsigned char* ptr = (unsigned char*) &input;
@@ -915,11 +923,25 @@ s7 (
  * into a 64x64 matrix, then transposing that matrix.  Consequently,
  * function is its own inverse.
  */
-void zip_64_bit(uint64_t input[64], uint64_t output[64]) {
+void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
     memset(output, 0, 64*8);
     for (int bitnum=0; bitnum<64; bitnum++) {
         for (int blocknum=0; blocknum<64; blocknum++) {
             output[bitnum] |= ((input[blocknum] << bitnum) & 0x8000000000000000LL) >> blocknum;
+        }
+    }
+}
+
+/*
+ * Like zip_64_bit, except it treats each input as only containing 56 bits (the
+ * most significant 8 bits are ignored).  Consequently, the output is only 56
+ * long.  Unlike zip_64_bit, this function is not its own inverse.
+ */
+void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
+    memset(output, 0, 56*8);
+    for (int bitnum=8; bitnum<64; bitnum++) {
+        for (int blocknum=0; blocknum<64; blocknum++) {
+            output[bitnum-8] |= ((input[blocknum] << bitnum) & 0x8000000000000000LL) >> blocknum;
         }
     }
 }
@@ -952,7 +974,7 @@ void des_sboxes(const uint64_t block_bits[64], uint64_t output_bits[32]) {
     #undef S
 }
 
-void des_feistel(const uint64_t block_bits[64], uint64_t key_bits[64], uint64_t output[32], int roundnum) {
+void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], int roundnum) {
 
     const unsigned char* key_bit_order = key_bit_orders[roundnum];
     const unsigned char* input_order = feistel_input_orders[roundnum%2];
@@ -977,7 +999,7 @@ void des_feistel(const uint64_t block_bits[64], uint64_t key_bits[64], uint64_t 
 
 }
 
-void des_encrypt(uint64_t block_bits[64], uint64_t key_bits[64]) {
+void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
 
     uint64_t feistel_output[32];
     const unsigned char* real_left_block_order;
@@ -1005,81 +1027,186 @@ void des_encrypt(uint64_t block_bits[64], uint64_t key_bits[64]) {
 
     }
 
-    // Unswitch block halves
-    uint64_t final_block[64];
-    for (int i=0; i<64; i++) {
-        final_block[i] = block_bits[encrypt_output_order[i]];
-    }
+    // Unswitch block halves (no op)
+    // Reverse of this is performed on the plaintext before entry
 
-    // Permute results into output_bits
-    for (int i=0; i<64; i++) {
-        block_bits[i] = final_block[final_permutation[i]];
-    }
+    // Permute results into output_bits (no op)
+    // Reverse of this is performed on the plaintext before entry
 
 }
 
-int main() {
-    uint64_t keys[64];
-    uint64_t keys_raw[64] = {
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL,
-        0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL, 0x0f1571c947d9e859LL
+/*
+ * Compares two zipped inputs.  Return a uint64_t in which each 0 represents a
+ * match for that position.
+ */
+uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
+    uint64_t result = 0LL;
+    for (int i=0; i<64; i++) {
+        result |= a[i] ^ b[i];
+        if (result == 0xffffffffffffffff) {
+            return result;
+        }
+
+    }
+    return result;
+}
+
+void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], const uint64_t keys_zipped[56]) {
+    uint64_t temp[64];
+
+    /*
+    zip_56_bit(keys_zipped, temp);
+    if (temp[0]&0x00FFFFFFFFFFFFFFLL == 0x000007FD6BCEC0LL) {
+        printf("Yes\n");
+    }
+    */
+    /*
+    printf("\n");
+    print_uint64_block(keys_zipped);
+    */
+
+    //TODO: Try rearranging things so this memcpy isn't needed.
+    memcpy(temp, ciphertext_zipped, 64*8);
+
+    des_decrypt(temp, keys_zipped);
+    // temp is now plaintext zipped
+
+    uint64_t comparison = compare(temp, plaintext_zipped);
+    if (comparison != 0xffffffffffffffffLL) {
+        //TODO: Print something more easily interpreted
+        zip_64_bit(keys_zipped, temp);
+        print_uint64_block(temp);
+        printf("\n");
+        printf("(comparison=0x%016qx)", ~comparison);
+    }
+}
+
+void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], uint64_t keys_zipped[56]) {
+    for (int i=0; i<pow(2, (NUM_CHUNK_BITS-6)); i++) {
+
+        check_key_64(plaintext_zipped, ciphertext_zipped, keys_zipped);
+
+        // Increment keys_zipped
+        for (int j=56-NUM_CHUNK_BITS; j<50; j++) {
+            keys_zipped[j] ^= 0xffffffffffffffffLL;
+            if (keys_zipped[j]) {
+                break;
+            }
+        }
+
+    }
+}
+
+int main(int argc, char** argv) {
+
+    uint64_t plaintext_zipped[64] = {
+        // Zipped 0x018945cddc549810 64 times
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL
     };
-    uint64_t plaintext[64];
-    uint64_t plaintext_raw[64] = {
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x02468aceeca86420LL, 0x0000000000000000LL, 0x0000000000000000LL
+    //uint64_t plaintext[64];
+    //zip_64_bit(plaintext, plaintext_zipped);
+
+    uint64_t ciphertext_zipped[64] = {
+        // Zipped 0x627870815363e4ff 64 times
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL
     };
     //uint64_t ciphertext[64];
-    uint64_t ciphertext_raw[64];
+    //zip_64_bit(ciphertext, ciphertext_zipped);
 
-    printf("Keys:\n");
-    print_uint64_block(keys_raw);
-    printf("\n");
-
-    printf("Plaintext:\n");
-    print_uint64_block(plaintext_raw);
-    printf("\n");
-
-    zip_64_bit(keys_raw, keys);
-    zip_64_bit(plaintext_raw, plaintext);
-
-    //for (unsigned int i=0; i<1000000; i++)
-    {
-        //if (i % 10000) { printf("%u\n", i); }
-        des_encrypt(plaintext, keys);
+    // These keys exclude the 8 unused key bits.  They start out at 0 to 63
+    // (zipped), then the search starting point is added based on argv[1].
+    uint64_t keys_zipped[56] = {
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x00000000ffffffffLL, 0x0000ffff0000ffffLL,
+        0x00ff00ff00ff00ffLL, 0x0f0f0f0f0f0f0f0fLL, 0x3333333333333333LL, 0x5555555555555555LL
+    };
+    // Set the most significant (56-NUM_CHUNK_BITS) based on argv[1].  Each
+    // char in argv[1] is '0' or '1' specifying what that bit for every key
+    // will be set to.
+    if (argv[1][56-NUM_CHUNK_BITS] != '\0') {
+        printf("Incorrect Argument Size!\n");
+        exit(-1);
+    }
+    for (int i=0; i<56-NUM_CHUNK_BITS; i++) {
+        keys_zipped[i] = (argv[1][i]-48) * 0xffffffffffffffffLL;
     }
 
-    zip_64_bit(plaintext, ciphertext_raw);
+    /*
+    uint64_t keys[64] = {
+        // Count from 0 to 63
+        0x00LL, 0x01LL, 0x02LL, 0x03LL,
+        0x04LL, 0x05LL, 0x06LL, 0x07LL,
+        0x08LL, 0x09LL, 0x0aLL, 0x0bLL,
+        0x0cLL, 0x0dLL, 0x0eLL, 0x0fLL,
+        0x10LL, 0x11LL, 0x12LL, 0x13LL,
+        0x14LL, 0x15LL, 0x16LL, 0x17LL,
+        0x18LL, 0x19LL, 0x1aLL, 0x1bLL,
+        0x1cLL, 0x1dLL, 0x1eLL, 0x1fLL,
+        0x20LL, 0x21LL, 0x22LL, 0x23LL,
+        0x24LL, 0x25LL, 0x26LL, 0x27LL,
+        0x28LL, 0x29LL, 0x2aLL, 0x2bLL,
+        0x2cLL, 0x2dLL, 0x2eLL, 0x2fLL,
+        0x30LL, 0x31LL, 0x32LL, 0x33LL,
+        0x34LL, 0x35LL, 0x36LL, 0x37LL,
+        0x38LL, 0x39LL, 0x3aLL, 0x3bLL,
+        0x3cLL, 0x3dLL, 0x3eLL, 0x3fLL
+    };
+    //uint64_t starting_point = (uint64_t) atoll(argv[1]);
+    for (int i=0; i<64; i++) {
+        //keys[i] += 0x000007FD6BCEC9LL;
+        keys[i] += 0x000007FD6BCEC0LL;
+        // 0x0e29c6447b3a2cLL = 3986581203139116
+    }
+    zip_56_bit(keys, keys_zipped);
+    /**/
 
-    printf("Ciphertext:\n");
-    print_uint64_block(ciphertext_raw);
+    /*
+    printf("\nKey Start (Zipped):\n");
+    print_uint64_block(keys_zipped);
+    printf("\n");
+    */
+
+    check_key_chunk(plaintext_zipped, ciphertext_zipped, keys_zipped);
 
 }

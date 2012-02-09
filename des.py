@@ -280,6 +280,7 @@ def dsa_decrypt(block, key):
     return dsa_encrypt(block, key, decrypt=True)
 
 def dsa_encrypt(block, key, decrypt=False):
+    nrounds = 16
     assert len(block) == 64
     assert len(key) == 64
 
@@ -299,7 +300,7 @@ def dsa_encrypt(block, key, decrypt=False):
     log("    Permuting into Left and Right keys")
     log("    Left Half  =", bits_to_pretty(key_left))
     log("    Right Half =", bits_to_pretty(key_right))
-    for i in xrange(16):
+    for i in xrange(nrounds):
         shift_amount = KEY_SHIFT_AMOUNTS[i]
         left_shift(key_left, shift_amount)
         left_shift(key_right, shift_amount)
@@ -328,7 +329,7 @@ def dsa_encrypt(block, key, decrypt=False):
     # Rounds
     left_block = block[0:32]
     right_block = block[32:]
-    for i in xrange(16):
+    for i in xrange(nrounds):
 
         log("Round %s:" % i)
         log("    Input:")
@@ -368,9 +369,13 @@ def log(*text):
             print string,
         print
 
-def bits_to_pretty(bits, blocksize=4):
+def bits_to_pretty(bits, blocksize=8):
+    return "%s (0x%s)" % \
+        (bits_to_binary_string(bits, blocksize), bits_to_hex(bits))
+    '''
     return "0x%s %s-bit" % \
         (bits_to_hex(bits), len(bits))
+    '''
     '''
     return "%s (0x%s) %s-bit" % \
         (bits_to_binary_string(bits, blocksize), bits_to_hex(bits), len(bits))
@@ -409,7 +414,8 @@ if __name__ == "__main__":
         else:
             op.error("plaintext must be 16 hex digits (or 8 ascii letters if using -a/--ascii)")
     if len(key) != 64:
-            op.error("key must be 16 hex digits")
+        print key, len(key)
+        op.error("key must be 16 hex digits")
 
     if options.verbose:
         print_logs = True
