@@ -1,6 +1,13 @@
 
+
+import os.path
+import sys
 from pprint import pprint
 from itertools import imap
+
+# Add lib/ to sys.path
+lib_directory = os.path.realpath(os.path.join(__file__, "../../lib/"))
+sys.path.append(lib_directory)
 
 from distproc import WorkManager
 
@@ -11,13 +18,13 @@ def count_inf(start=0, step=1):
         yield start
         start += step
 
-class HashWorkManager(WorkManager):
+class DesWorkManager(WorkManager):
 
     def __init__(self, *args, **kwargs):
 
         self.results = []
 
-        super(HashWorkManager, self).__init__(*args, **kwargs)
+        super(DesWorkManager, self).__init__(*args, **kwargs)
 
     def tasks(self):
 
@@ -27,10 +34,6 @@ class HashWorkManager(WorkManager):
             yield task
 
     def process_result(self, result):
-        '''
-        if self.tasks_finished % 100000 == 0:
-            print "Tasks Finished:", self.tasks_finished
-        '''
         print "Tasks Finished:", self.tasks_finished
         if result[1]:
             self.results.append(result)
@@ -43,5 +46,5 @@ class HashWorkManager(WorkManager):
 
 if __name__ == "__main__":
 
-    w = HashWorkManager('', 50000, "secret")
+    w = DesWorkManager('', 50000, "secret")
     w.run()

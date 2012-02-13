@@ -40,19 +40,6 @@ static const unsigned char right_block_order[32] = {
     60, 52, 44, 36, 28, 20, 12, 4,
     62, 54, 46, 38, 30, 22, 14, 6
 };
-static const unsigned char encrypt_output_order[64] = {
-    // Right block order
-    56, 48, 40, 32, 24, 16,  8, 0,
-    58, 50, 42, 34, 26, 18, 10, 2,
-    60, 52, 44, 36, 28, 20, 12, 4,
-    62, 54, 46, 38, 30, 22, 14, 6,
-
-    // Left block order
-    57, 49, 41, 33, 25, 17,  9, 1,
-    59, 51, 43, 35, 27, 19, 11, 3,
-    61, 53, 45, 37, 29, 21, 13, 5,
-    63, 55, 47, 39, 31, 23, 15, 7
-};
 
 static const unsigned char feistel_input_orders[2][48] = {
     {
@@ -252,18 +239,7 @@ static const unsigned char key_bit_orders[16][48] = {
     }
 };
 
-static const unsigned char final_permutation[64] = {
-    39, 7, 47, 15, 55, 23, 63, 31,
-    38, 6, 46, 14, 54, 22, 62, 30,
-    37, 5, 45, 13, 53, 21, 61, 29,
-    36, 4, 44, 12, 52, 20, 60, 28,
-    35, 3, 43, 11, 51, 19, 59, 27,
-    34, 2, 42, 10, 50, 18, 58, 26,
-    33, 1, 41,  9, 49, 17, 57, 25,
-    32, 0, 40,  8, 48, 16, 56, 24
-};
-
-void print_uint64(uint64_t input) {
+static void print_uint64(uint64_t input) {
     input = htobe64(input);
     unsigned char* ptr = (unsigned char*) &input;
     printf("0x");
@@ -273,7 +249,7 @@ void print_uint64(uint64_t input) {
     printf("\n");
 }
 
-void print_uint64_block(const uint64_t inputs[64]) {
+static void print_uint64_block(const uint64_t inputs[64]) {
     for (int inputnum=0; inputnum<64; inputnum++) {
         uint64_t input = htobe64(inputs[inputnum]);
         unsigned char* ptr = (unsigned char*) &input;
@@ -291,7 +267,7 @@ void print_uint64_block(const uint64_t inputs[64]) {
     }
 }
 
-static void s0(
+static inline void s0(
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -373,7 +349,7 @@ static void s0(
     *out3 = x56;
 }
 
-static void s1(
+static inline void s1(
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -449,9 +425,7 @@ static void s1(
     *out2 = x50;
 }
 
-
-static void
-s2 (
+static inline void s2 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -530,9 +504,7 @@ s2 (
     *out1 = x53;
 }
 
-
-static void
-s3 (
+static inline void s3 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -595,9 +567,7 @@ s3 (
     *out4 = x39;
 }
 
-
-static void
-s4 (
+static inline void s4 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -679,9 +649,7 @@ s4 (
     *out1 = x56;
 }
 
-
-static void
-s5 (
+static inline void s5 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -760,9 +728,7 @@ s5 (
     *out2 = x53;
 }
 
-
-static void
-s6 (
+static inline void s6 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -839,9 +805,7 @@ s6 (
     *out4 = x51;
 }
 
-
-static void
-s7 (
+static inline void s7 (
     uint64_t a1,
     uint64_t a2,
     uint64_t a3,
@@ -923,7 +887,7 @@ s7 (
  * into a 64x64 matrix, then transposing that matrix.  Consequently,
  * function is its own inverse.
  */
-void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
+static void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
     memset(output, 0, 64*8);
     for (int bitnum=0; bitnum<64; bitnum++) {
         for (int blocknum=0; blocknum<64; blocknum++) {
@@ -937,7 +901,7 @@ void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
  * most significant 8 bits are ignored).  Consequently, the output is only 56
  * long.  Unlike zip_64_bit, this function is not its own inverse.
  */
-void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
+static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
     memset(output, 0, 56*8);
     for (int bitnum=8; bitnum<64; bitnum++) {
         for (int blocknum=0; blocknum<64; blocknum++) {
@@ -946,7 +910,7 @@ void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
     }
 }
 
-void des_sboxes(const uint64_t block_bits[64], uint64_t output_bits[32]) {
+static inline void des_sboxes(const uint64_t block_bits[64], uint64_t output_bits[32]) {
     #define S(i) \
         s ## i ( \
             block_bits[i*6 + 0], \
@@ -974,7 +938,7 @@ void des_sboxes(const uint64_t block_bits[64], uint64_t output_bits[32]) {
     #undef S
 }
 
-void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], int roundnum) {
+static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], int roundnum) {
 
     const unsigned char* key_bit_order = key_bit_orders[roundnum];
     const unsigned char* input_order = feistel_input_orders[roundnum%2];
@@ -999,7 +963,7 @@ void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uin
 
 }
 
-void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
+static void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
 
     uint64_t feistel_output[32];
     const unsigned char* real_left_block_order;
@@ -1039,7 +1003,7 @@ void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
  * Compares two zipped inputs.  Return a uint64_t in which each 0 represents a
  * match for that position.
  */
-uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
+static uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
     uint64_t result = 0LL;
     for (int i=0; i<64; i++) {
         result |= a[i] ^ b[i];
@@ -1051,7 +1015,7 @@ uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
     return result;
 }
 
-void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], const uint64_t keys_zipped[56]) {
+static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], const uint64_t keys_zipped[56]) {
     uint64_t temp[64];
 
     /*
@@ -1081,7 +1045,7 @@ void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext
     }
 }
 
-void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], uint64_t keys_zipped[56]) {
+static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], uint64_t keys_zipped[56]) {
     for (int i=0; i<pow(2, (NUM_CHUNK_BITS-6)); i++) {
 
         check_key_64(plaintext_zipped, ciphertext_zipped, keys_zipped);
@@ -1199,7 +1163,7 @@ int main(int argc, char** argv) {
         // 0x0e29c6447b3a2cLL = 3986581203139116
     }
     zip_56_bit(keys, keys_zipped);
-    /**/
+    */
 
     /*
     printf("\nKey Start (Zipped):\n");

@@ -1,5 +1,11 @@
 
+import os.path
+import sys
 from subprocess import Popen, PIPE, CalledProcessError
+
+# Add lib/ to sys.path
+lib_directory = os.path.realpath(os.path.join(__file__, "../../lib/"))
+sys.path.append(lib_directory)
 
 from distproc import Worker
 
@@ -18,7 +24,7 @@ def check_output(*popenargs, **kwargs):
         raise CalledProcessError(retcode, cmd)
     return output
 
-class HashWorker(Worker):
+class DesWorker(Worker):
 
     def do_task(self, data):
         print "Doing Task", data
@@ -26,5 +32,5 @@ class HashWorker(Worker):
 
 if __name__ == "__main__":
 
-    w = HashWorker('127.0.0.1', 50000, "secret")
+    w = DesWorker('127.0.0.1', 50000, "secret")
     w.run()
