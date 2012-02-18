@@ -15,7 +15,4 @@ if __name__ == "__main__":
     # Initial Permutation
     processed = bittools.permute(plaintext, desconst.INITIAL_PERMUTATION)
 
-    # Switch left and right half
-    processed = processed[32:64] + processed[0:32]
-
     print bittools.bits_to_hex(processed)

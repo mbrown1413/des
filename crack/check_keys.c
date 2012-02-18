@@ -28,42 +28,6 @@
 // 64 decryptions are done simultaneously.
 #define NUM_CHUNK_BITS 28
 
-static const unsigned char left_block_order[32] = {
-    57, 49, 41, 33, 25, 17,  9, 1,
-    59, 51, 43, 35, 27, 19, 11, 3,
-    61, 53, 45, 37, 29, 21, 13, 5,
-    63, 55, 47, 39, 31, 23, 15, 7
-};
-static const unsigned char right_block_order[32] = {
-    56, 48, 40, 32, 24, 16,  8, 0,
-    58, 50, 42, 34, 26, 18, 10, 2,
-    60, 52, 44, 36, 28, 20, 12, 4,
-    62, 54, 46, 38, 30, 22, 14, 6
-};
-
-static const unsigned char feistel_input_orders[2][48] = {
-    {
-         6, 56, 48, 40, 32, 24,
-        32, 24, 16,  8,  0, 58,
-         0, 58, 50, 42, 34, 26,
-        34, 26, 18, 10,  2, 60,
-         2, 60, 52, 44, 36, 28,
-        36, 28, 20, 12,  4, 62,
-         4, 62, 54, 46, 38, 30,
-        38, 30, 22, 14,  6, 56
-    },
-    {
-         7, 57, 49, 41, 33, 25,
-        33, 25, 17,  9,  1, 59,
-         1, 59, 51, 43, 35, 27,
-        35, 27, 19, 11,  3, 61,
-         3, 61, 53, 45, 37, 29,
-        37, 29, 21, 13,  5, 63,
-         5, 63, 55, 47, 39, 31,
-        39, 31, 23, 15,  7, 57
-    },
-};
-
 static const unsigned char feistel_output_order[32] = {
      8, 16, 22, 30, 12, 27,  1, 17,
     23, 15, 29,  5, 25, 19,  9,  0,
@@ -910,22 +874,37 @@ static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
     }
 }
 
-static inline void des_sboxes(const uint64_t block_bits[64], uint64_t output_bits[32]) {
-    #define S(i) \
-        s ## i ( \
-            block_bits[i*6 + 0], \
-            block_bits[i*6 + 1], \
-            block_bits[i*6 + 2], \
-            block_bits[i*6 + 3], \
-            block_bits[i*6 + 4], \
-            block_bits[i*6 + 5], \
-            &output_bits[feistel_output_order[i*4 + 0]], \
-            &output_bits[feistel_output_order[i*4 + 1]], \
-            &output_bits[feistel_output_order[i*4 + 2]], \
-            &output_bits[feistel_output_order[i*4 + 3]] \
+static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], const int roundnum) {
+
+    const unsigned char* key_bit_order = key_bit_orders[16-roundnum];
+
+    // Either 0 (left block) or 32 (right block) depending on the round
+    #define BLOCK_START(roundnum) ( (roundnum+1)%2 * 32 )
+
+    // Gives the feistel expansion of the left or right block (depending on the
+    // round).  Rather than giving an integer from 0-47 for each expansion
+    // output bit, the sbox that the input is needed for is given.
+    //   snum - An integer from 0-7 specifying which sbox to get the inputs of.
+    //   i - An integer from 0-5 specifying which input from the sbox to get.
+    #define EXPANDED(snum, i, roundnum) ( block_bits[(snum*4 + (i+31)%32) % 32 + BLOCK_START(roundnum)] )
+
+    // Gets the key bit i from round roundnum.
+    #define KEY_BIT(roundnum, i) ( key_bits[key_bit_order[i]] )
+
+    #define S(snum) \
+        s ## snum ( \
+            EXPANDED(snum, 0, roundnum) ^ KEY_BIT(roundnum, snum*6 + 0), \
+            EXPANDED(snum, 1, roundnum) ^ KEY_BIT(roundnum, snum*6 + 1), \
+            EXPANDED(snum, 2, roundnum) ^ KEY_BIT(roundnum, snum*6 + 2), \
+            EXPANDED(snum, 3, roundnum) ^ KEY_BIT(roundnum, snum*6 + 3), \
+            EXPANDED(snum, 4, roundnum) ^ KEY_BIT(roundnum, snum*6 + 4), \
+            EXPANDED(snum, 5, roundnum) ^ KEY_BIT(roundnum, snum*6 + 5), \
+            &output[feistel_output_order[snum*4 + 0]], \
+            &output[feistel_output_order[snum*4 + 1]], \
+            &output[feistel_output_order[snum*4 + 2]], \
+            &output[feistel_output_order[snum*4 + 3]] \
         );
 
-    //memset(output_bits, 0, 32*8);
     S(0);
     S(1);
     S(2);
@@ -936,66 +915,37 @@ static inline void des_sboxes(const uint64_t block_bits[64], uint64_t output_bit
     S(7);
 
     #undef S
-}
-
-static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], int roundnum) {
-
-    const unsigned char* key_bit_order = key_bit_orders[roundnum];
-    const unsigned char* input_order = feistel_input_orders[roundnum%2];
-
-    uint64_t temp[64];
-
-    // Feistel Expansion (no op)
-    // Already been accounted for in input_order.
-
-    // Feistel Input XOR Subkey
-    // The input bits are picked from block_bits in the order defined by
-    // input_order.  The output is stored linearly.
-    //const unsigned char* key_bit_order = key_bit_orders[roundnum];
-    for (int i=0; i<48; i++) {
-        temp[i] = block_bits[input_order[i]] ^ key_bits[key_bit_order[i]];
-    }
-
-    // S-Boxes
-    des_sboxes(temp, output);
-
-    // Feistel End Permutation (no op)
 
 }
 
 static void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
 
     uint64_t feistel_output[32];
-    const unsigned char* real_left_block_order;
 
-    // Initial Permutation (no op)
-
-    for (int roundnum=0; roundnum<16; roundnum++) {
-
-        // Account for blocks switching each round
-        if (roundnum % 2 == 0) {
-            real_left_block_order = left_block_order;
-        } else {
-            real_left_block_order = right_block_order;
+    #define ROUND(roundnum) \
+        des_feistel(block_bits, key_bits, feistel_output, roundnum); \
+        for (int i=0; i<=32; i++) { \
+            block_bits[i + (roundnum%2 * 32)] ^= feistel_output[i]; \
         }
 
-        // Feistel Function
-        des_feistel(block_bits, key_bits, feistel_output, roundnum);
+    ROUND(16)
+    ROUND(15)
+    ROUND(14)
+    ROUND(13)
+    ROUND(12)
+    ROUND(11)
+    ROUND(10)
+    ROUND(9)
+    ROUND(8)
+    ROUND(7)
+    ROUND(6)
+    ROUND(5)
+    ROUND(4)
+    ROUND(3)
+    ROUND(2)
+    ROUND(1)
 
-        // XOR Left Block and Feistel output
-        for (int i=0; i<32; i++) {
-            block_bits[real_left_block_order[i]] ^= feistel_output[i];
-        }
-
-        // Switch block halves (no op)
-
-    }
-
-    // Unswitch block halves (no op)
-    // Reverse of this is performed on the plaintext before entry
-
-    // Permute results into output_bits (no op)
-    // Reverse of this is performed on the plaintext before entry
+    #undef ROUND
 
 }
 
@@ -1018,17 +968,6 @@ static uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
 static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], const uint64_t keys_zipped[56]) {
     uint64_t temp[64];
 
-    /*
-    zip_56_bit(keys_zipped, temp);
-    if (temp[0]&0x00FFFFFFFFFFFFFFLL == 0x000007FD6BCEC0LL) {
-        printf("Yes\n");
-    }
-    */
-    /*
-    printf("\n");
-    print_uint64_block(keys_zipped);
-    */
-
     //TODO: Try rearranging things so this memcpy isn't needed.
     memcpy(temp, ciphertext_zipped, 64*8);
 
@@ -1037,11 +976,17 @@ static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t cip
 
     uint64_t comparison = compare(temp, plaintext_zipped);
     if (comparison != 0xffffffffffffffffLL) {
-        //TODO: Print something more easily interpreted
-        zip_64_bit(keys_zipped, temp);
-        print_uint64_block(temp);
-        printf("\n");
-        printf("(comparison=0x%016qx)", ~comparison);
+
+        // Print matched key
+        uint64_t keys_unzipped[64];
+        zip_64_bit(keys_zipped, keys_unzipped);
+        for (int i=0; i<64; i++) {
+            if (~comparison & 0x8000000000000000LL) {
+                printf("0x%014qx\n", keys_unzipped[i]>>8);
+            }
+            comparison <<= 1;
+        }
+
     }
 }
 
@@ -1064,6 +1009,26 @@ static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t 
 int main(int argc, char** argv) {
 
     uint64_t plaintext_zipped[64] = {
+
+        // Zipped 0x3cf03c0f5a005a00 64 times
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL
+
+        /*
         // Zipped 0x018945cddc549810 64 times
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
@@ -1081,11 +1046,32 @@ int main(int argc, char** argv) {
         0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL
+        */
     };
     //uint64_t plaintext[64];
     //zip_64_bit(plaintext, plaintext_zipped);
 
     uint64_t ciphertext_zipped[64] = {
+
+        // Zipped 0xf796c0b8c8e782b1 64 times
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
+        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
+        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL
+
+        /*
         // Zipped 0x627870815363e4ff 64 times
         0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
@@ -1103,6 +1089,8 @@ int main(int argc, char** argv) {
         0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
         0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
         0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL
+        */
+
     };
     //uint64_t ciphertext[64];
     //zip_64_bit(ciphertext, ciphertext_zipped);
