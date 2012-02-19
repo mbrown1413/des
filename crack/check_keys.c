@@ -1008,92 +1008,8 @@ static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t 
 
 int main(int argc, char** argv) {
 
-    uint64_t plaintext_zipped[64] = {
-
-        // Zipped 0x3cf03c0f5a005a00 64 times
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL
-
-        /*
-        // Zipped 0x018945cddc549810 64 times
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL
-        */
-    };
-    //uint64_t plaintext[64];
-    //zip_64_bit(plaintext, plaintext_zipped);
-
-    uint64_t ciphertext_zipped[64] = {
-
-        // Zipped 0xf796c0b8c8e782b1 64 times
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL
-
-        /*
-        // Zipped 0x627870815363e4ff 64 times
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0x0000000000000000LL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0x0000000000000000LL,
-        0x0000000000000000LL, 0xffffffffffffffffLL, 0x0000000000000000LL, 0x0000000000000000LL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL,
-        0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL, 0xffffffffffffffffLL
-        */
-
-    };
-    //uint64_t ciphertext[64];
-    //zip_64_bit(ciphertext, ciphertext_zipped);
+    // Define plaintext_zipped and ciphertext_zipped
+    #include "input.h"
 
     // These keys exclude the 8 unused key bits.  They start out at 0 to 63
     // (zipped), then the search starting point is added based on argv[1].
@@ -1113,6 +1029,7 @@ int main(int argc, char** argv) {
         0x0000000000000000LL, 0x0000000000000000LL, 0x00000000ffffffffLL, 0x0000ffff0000ffffLL,
         0x00ff00ff00ff00ffLL, 0x0f0f0f0f0f0f0f0fLL, 0x3333333333333333LL, 0x5555555555555555LL
     };
+
     // Set the most significant (56-NUM_CHUNK_BITS) based on argv[1].  Each
     // char in argv[1] is '0' or '1' specifying what that bit for every key
     // will be set to.
@@ -1123,41 +1040,6 @@ int main(int argc, char** argv) {
     for (int i=0; i<56-NUM_CHUNK_BITS; i++) {
         keys_zipped[i] = (argv[1][i]-48) * 0xffffffffffffffffLL;
     }
-
-    /*
-    uint64_t keys[64] = {
-        // Count from 0 to 63
-        0x00LL, 0x01LL, 0x02LL, 0x03LL,
-        0x04LL, 0x05LL, 0x06LL, 0x07LL,
-        0x08LL, 0x09LL, 0x0aLL, 0x0bLL,
-        0x0cLL, 0x0dLL, 0x0eLL, 0x0fLL,
-        0x10LL, 0x11LL, 0x12LL, 0x13LL,
-        0x14LL, 0x15LL, 0x16LL, 0x17LL,
-        0x18LL, 0x19LL, 0x1aLL, 0x1bLL,
-        0x1cLL, 0x1dLL, 0x1eLL, 0x1fLL,
-        0x20LL, 0x21LL, 0x22LL, 0x23LL,
-        0x24LL, 0x25LL, 0x26LL, 0x27LL,
-        0x28LL, 0x29LL, 0x2aLL, 0x2bLL,
-        0x2cLL, 0x2dLL, 0x2eLL, 0x2fLL,
-        0x30LL, 0x31LL, 0x32LL, 0x33LL,
-        0x34LL, 0x35LL, 0x36LL, 0x37LL,
-        0x38LL, 0x39LL, 0x3aLL, 0x3bLL,
-        0x3cLL, 0x3dLL, 0x3eLL, 0x3fLL
-    };
-    //uint64_t starting_point = (uint64_t) atoll(argv[1]);
-    for (int i=0; i<64; i++) {
-        //keys[i] += 0x000007FD6BCEC9LL;
-        keys[i] += 0x000007FD6BCEC0LL;
-        // 0x0e29c6447b3a2cLL = 3986581203139116
-    }
-    zip_56_bit(keys, keys_zipped);
-    */
-
-    /*
-    printf("\nKey Start (Zipped):\n");
-    print_uint64_block(keys_zipped);
-    printf("\n");
-    */
 
     check_key_chunk(plaintext_zipped, ciphertext_zipped, keys_zipped);
 
