@@ -232,12 +232,12 @@ static void print_uint64_block(const uint64_t inputs[64]) {
 }
 
 static inline void s0(
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -314,12 +314,12 @@ static inline void s0(
 }
 
 static inline void s1(
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -390,12 +390,12 @@ static inline void s1(
 }
 
 static inline void s2 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -469,12 +469,12 @@ static inline void s2 (
 }
 
 static inline void s3 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -532,12 +532,12 @@ static inline void s3 (
 }
 
 static inline void s4 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -614,12 +614,12 @@ static inline void s4 (
 }
 
 static inline void s5 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -693,12 +693,12 @@ static inline void s5 (
 }
 
 static inline void s6 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -770,12 +770,12 @@ static inline void s6 (
 }
 
 static inline void s7 (
-    uint64_t a1,
-    uint64_t a2,
-    uint64_t a3,
-    uint64_t a4,
-    uint64_t a5,
-    uint64_t a6,
+    const uint64_t a1,
+    const uint64_t a2,
+    const uint64_t a3,
+    const uint64_t a4,
+    const uint64_t a5,
+    const uint64_t a6,
     uint64_t *out1,
     uint64_t *out2,
     uint64_t *out3,
@@ -851,7 +851,7 @@ static inline void s7 (
  * into a 64x64 matrix, then transposing that matrix.  Consequently,
  * function is its own inverse.
  */
-static void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
+inline static void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
     memset(output, 0, 64*8);
     for (int bitnum=0; bitnum<64; bitnum++) {
         for (int blocknum=0; blocknum<64; blocknum++) {
@@ -874,9 +874,9 @@ static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
     }
 }
 
-static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], const int roundnum) {
+static void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], const int roundnum) {
 
-    const unsigned char* key_bit_order = key_bit_orders[16-roundnum];
+    const unsigned char* key_bit_order = key_bit_orders[roundnum];
 
     // Either 0 (left block) or 32 (right block) depending on the round
     #define BLOCK_START(roundnum) ( (roundnum+1)%2 * 32 )
@@ -891,6 +891,7 @@ static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key
     // Gets the key bit i from round roundnum.
     #define KEY_BIT(roundnum, i) ( key_bits[key_bit_order[i]] )
 
+    // Call an sbox
     #define S(snum) \
         s ## snum ( \
             EXPANDED(snum, 0, roundnum) ^ KEY_BIT(roundnum, snum*6 + 0), \
@@ -914,36 +915,38 @@ static inline void des_feistel(const uint64_t block_bits[64], const uint64_t key
     S(6);
     S(7);
 
+    #undef BLOCK_STORT
+    #undef EXPANDED
+    #undef KEY_BIT
     #undef S
 
 }
 
-static void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
+inline static void des_decrypt(uint64_t ciphertext_bits[64], const uint64_t key_bits[56]) {
 
-    uint64_t feistel_output[32];
-
+    static uint64_t feistel_output[32];
     #define ROUND(roundnum) \
-        des_feistel(block_bits, key_bits, feistel_output, roundnum); \
+        des_feistel(ciphertext_bits, key_bits, feistel_output, roundnum); \
         for (int i=0; i<=32; i++) { \
-            block_bits[i + (roundnum%2 * 32)] ^= feistel_output[i]; \
+            ciphertext_bits[i + (roundnum%2 * 32)] ^= feistel_output[i]; \
         }
 
-    ROUND(16)
-    ROUND(15)
-    ROUND(14)
-    ROUND(13)
-    ROUND(12)
-    ROUND(11)
-    ROUND(10)
-    ROUND(9)
-    ROUND(8)
-    ROUND(7)
-    ROUND(6)
-    ROUND(5)
-    ROUND(4)
-    ROUND(3)
-    ROUND(2)
-    ROUND(1)
+    ROUND(0);
+    ROUND(1);
+    ROUND(2);
+    ROUND(3);
+    ROUND(4);
+    ROUND(5);
+    ROUND(6);
+    ROUND(7);
+    ROUND(8);
+    ROUND(9);
+    ROUND(10);
+    ROUND(11);
+    ROUND(12);
+    ROUND(13);
+    ROUND(14);
+    ROUND(15);
 
     #undef ROUND
 
@@ -953,7 +956,7 @@ static void des_decrypt(uint64_t block_bits[64], const uint64_t key_bits[56]) {
  * Compares two zipped inputs.  Return a uint64_t in which each 0 represents a
  * match for that position.
  */
-static uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
+inline static uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
     uint64_t result = 0LL;
     for (int i=0; i<64; i++) {
         result |= a[i] ^ b[i];
@@ -966,7 +969,7 @@ static uint64_t compare(const uint64_t a[64], const uint64_t b[64]) {
 }
 
 static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t ciphertext_zipped[64], const uint64_t keys_zipped[56]) {
-    uint64_t temp[64];
+    static uint64_t temp[64];
 
     //TODO: Try rearranging things so this memcpy isn't needed.
     memcpy(temp, ciphertext_zipped, 64*8);
@@ -977,12 +980,11 @@ static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t cip
     uint64_t comparison = compare(temp, plaintext_zipped);
     if (comparison != 0xffffffffffffffffLL) {
 
-        // Print matched key
-        uint64_t keys_unzipped[64];
-        zip_64_bit(keys_zipped, keys_unzipped);
+        // Print matched keys
+        zip_64_bit(keys_zipped, temp);
         for (int i=0; i<64; i++) {
             if (~comparison & 0x8000000000000000LL) {
-                printf("0x%014qx\n", keys_unzipped[i]>>8);
+                printf("0x%014qx\n", temp[i]>>8);
             }
             comparison <<= 1;
         }
@@ -996,7 +998,7 @@ static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t 
         check_key_64(plaintext_zipped, ciphertext_zipped, keys_zipped);
 
         // Increment keys_zipped
-        for (int j=56-NUM_CHUNK_BITS; j<50; j++) {
+        for (int j=56-NUM_CHUNK_BITS; ; j++) {
             keys_zipped[j] ^= 0xffffffffffffffffLL;
             if (keys_zipped[j]) {
                 break;
