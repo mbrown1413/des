@@ -1,0 +1,11 @@
+
+* Make des.c and des_64.c take input on the command line.  Then update
+  documentation in README.rst
+* Consolidate tables and functions used in multiple C files.
+* Make des_64.c do permutation elimination like crack/ does, i.e., do initial
+  permutation first, so left and right block can be referenced as 0-31 and
+  32-63.
+* Make des.c and des_64.c do both encryption and decryption.
+* Write crack/README.rst
+* Remove some optimizations and clean up des.c; it should be easy to follow,
+  not fast.

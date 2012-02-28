@@ -6,32 +6,29 @@ Multiple implementations of DES (Data Encryption Standard) encryption and
 decryption.  Includes the following:
 
 * des.py
-    Straightforward but slow.  Code is well documented and easy to follow.  A
-    learning tool for people learning about DES.  Use -v to see DES done step
-    by step.
+    Straightforward but slow.  Well documented and easy to follow; a good
+    learning tool for people new to DES.
 
 * des.c
     Conversion of des.py into C.
 
 * des_64.c
-    Optimized based on techniques described below in the optimizations_
+    Optimized based on techniques described below in the optimizations
     section.  Useful learning tool to understand these optimizations
 
 * crack/
-    Distributed, optimized key search.  Takes in a known plaintext, ciphertext
-    pair and tries every key until one of them works.  More information in
-    ``crack/README.rst``
+    Distributed, optimized key search (known plaintext attack).  Takes a known
+    plaintext, ciphertext pair and tries every key until one of them works.
+    More information in ``crack/README.rst``
 
+All implementations except for crack/ are learning tools for DES and
+optimizations.  In contrast, crack/ is fully optimized and not meant for
+readability, although it is well commented and as readable as it can be without
+sacrificing speed.
 
-All but crack/ are learning tools for DES and optimizations.  In contrast,
-crack/ is fully optimized and not meant for readability, although it is well
-commented and as readable as it can be without sacrificing speed.
-
-Usage
-=====
 
 des.py
-------
+======
 
 To encrypt, run des.py using Python and pass in your plaintext and key in hex::
 
@@ -47,7 +44,7 @@ To decrypt, use the -d option and give ciphertext instead of plaintext::
     beefbeefbeefbeef
 
 ASCII Input/Output
-``````````````````
+------------------
 If you want to give the plaintext with 8 ASCII characters, use the -a option::
 
     $ python des.py -a ascichrs 0123456789abcdef
@@ -59,7 +56,7 @@ When decrypting, -a will instead convert the resulting plaintext into ASCII::
     ascichrs
 
 Verbose Output
-``````````````
+--------------
 
 You can also use the -v option to have it show detailed step by step
 calculations::
@@ -70,7 +67,7 @@ Use this for your homework!
 
 
 des.c and des_64.c
-------------------
+==================
 
 You will need GNU Make and gcc.  To compile, run make::
 
@@ -97,18 +94,3 @@ TODO
 Bitwise S-Boxes
 ---------------
 TODO
-
-
-TODO
-====
-
-* Make des.c and des_64.c take input on the command line.  Then update
-  documentation in README.rst
-* Consolidate tables and functions used in multiple C files.
-* Make des_64.c do permutation elimination like crack/ does, i.e., do initial
-  permutation first, so left and right block can be referenced as 0-31 and
-  32-63.
-* Make des.c and des_64.c do both encryption and decryption.
-* Write crack/README.rst
-* Remove some optimizations and clean up des.c; it should be easy to follow,
-  not fast.
