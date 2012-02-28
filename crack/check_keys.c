@@ -23,10 +23,8 @@
 #include <string.h>
 #include <math.h>
 
-// Number of bits that will be searched.  The least significant NUM_CHUNK_BITS
-// in the key space will be exhaustively searched.  Must be at least 6, since
-// 64 decryptions are done simultaneously.
-#define NUM_CHUNK_BITS 28
+// Define plaintext_zipped, ciphertext_zipped, and NUM_CHUNK_BITS
+#include "input.h"
 
 static const unsigned char feistel_output_order[32] = {
      8, 16, 22, 30, 12, 27,  1, 17,
@@ -1010,12 +1008,9 @@ static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t 
 
 int main(int argc, char** argv) {
 
-    // Define plaintext_zipped and ciphertext_zipped
-    #include "input.h"
-
     // These keys exclude the 8 unused key bits.  They start out at 0 to 63
     // (zipped), then the search starting point is added based on argv[1].
-    uint64_t keys_zipped[56] = {
+    static uint64_t keys_zipped[56] = {
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,

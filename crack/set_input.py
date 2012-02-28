@@ -45,32 +45,48 @@ def zip_and_format(bits):
 if __name__ == "__main__":
 
     op = OptionParser(
-        usage="%prog <plaintext> <ciphertext>",
-        description="Sets up the input for the keysearch by creating input.h")
+        usage="%prog <plaintext> <ciphertext> <num_chunk_bits>",
+        description="Sets up the input for the keysearch by creating 'input.h'. "
+        "plaintext and ciphertext must be 64 bits of hex (without the 0x "
+        "prefix).  num_chunk_bits specifies the number of bits a single call to "
+        "check_keys will search.  It must be between 6 and 56 inclusive.")
     (options, args) = op.parse_args()
 
-    if len(args) < 2:
+    if len(args) < 3:
         op.error("Not enough arguments")
-    elif len(args) > 2:
+    elif len(args) > 3:
         op.error("Too many arguments")
     plaintext = bittools.hex_to_bits(args[0])
     ciphertext = bittools.hex_to_bits(args[1])
+    try:
+        num_chunk_bits = int(args[2])
+    except ValueError:
+        op.error("num_chunk_bits must be an integer between 6 and 56 inclusive")
 
     if len(plaintext) != 64:
         op.error("plaintext must be 16 hex digits")
     if len(ciphertext) != 64:
         op.error("ciphertext must be 16 hex digits")
+    if num_chunk_bits < 6 or num_chunk_bits > 56:
+        op.error("num_chunk_bits must be an integer between 6 and 56 inclusive")
 
     f = open("input.h", 'w')
 
+    f.write("""
+// Number of bits that will be searched.  The least significant NUM_CHUNK_BITS
+// in the key space will be exhaustively searched.  Must be at least 6, since
+// 64 decryptions are done simultaneously.
+""")
+    f.write("#define NUM_CHUNK_BITS %d\n\n" % num_chunk_bits)
+
     processed_plaintext = preprocess_plaintext(plaintext)
-    f.write("uint64_t plaintext_zipped[64] = {\n\n")
+    f.write("static uint64_t plaintext_zipped[64] = {\n\n")
     f.write("    // Unprocessed plaintext: 0x%s\n" % args[0])
     f.write(zip_and_format(processed_plaintext))
     f.write("\n};\n\n")
 
     processed_ciphertext = preprocess_ciphertext(ciphertext)
-    f.write("uint64_t ciphertext_zipped[64] = {\n\n")
+    f.write("static uint64_t ciphertext_zipped[64] = {\n\n")
     f.write("    // Unprocessed ciphertext: 0x%s\n" % args[1])
     f.write(zip_and_format(processed_ciphertext))
     f.write("\n};")
