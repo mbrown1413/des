@@ -157,8 +157,8 @@ if __name__ == "__main__":
 
     from optparse import OptionParser
     op = OptionParser(
-        usage = "%prog [options] <plaintext|ciphertext> <key>",
-        description = "Encrypt or decrypt using DES.  plaintext, ciphertext and key must be in hex.")
+        usage = "%prog [options] <plaintext|ciphertext> key",
+        description = "Encrypt (default) or decrypt using DES.  plaintext, ciphertext and key must be 64 bits in hex.")
     op.add_option("-d", "--decrypt", dest="decrypt", action="store_true",
         default=False, help="Interpret the first argument as ciphertext and decrypt it.")
     op.add_option("-c", "--encrypt", dest="decrypt", action="store_false",
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     op.add_option("-v", "--verbose", dest="verbose", action="store_true",
         default=False, help="Print details and intermediate steps of the DSA algorithm.")
     op.add_option("-a", "--ascii", dest="ascii", action="store_true",
-        default=False, help="Convert plaintext from ascii before encrypting, or convert plaintext to ascii after decrypting.")
+        default=False, help="Convert input plaintext from ascii if encrypting, or convert resulting plaintext to ascii if decrypting.")
     (options, args) = op.parse_args()
 
     if len(args) < 2:
