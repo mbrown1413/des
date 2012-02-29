@@ -1,4 +1,5 @@
 
+=============================
 DES Implementation Collection
 =============================
 
@@ -28,7 +29,7 @@ sacrificing speed.
 
 
 des.py
-======
+------
 
 To encrypt, run des.py using Python and pass in your plaintext and key in hex::
 
@@ -44,7 +45,7 @@ To decrypt, use the -d option and give ciphertext instead of plaintext::
     beefbeefbeefbeef
 
 ASCII Input/Output
-------------------
+``````````````````
 If you want to give the plaintext with 8 ASCII characters, use the -a option::
 
     $ python des.py -a ascichrs 0123456789abcdef
@@ -56,7 +57,7 @@ When decrypting, -a will instead convert the resulting plaintext into ASCII::
     ascichrs
 
 Verbose Output
---------------
+``````````````
 
 You can also use the -v option to have it show detailed step by step
 calculations::
@@ -67,7 +68,7 @@ Use this for your homework!
 
 
 des.c and des_64.c
-==================
+------------------
 
 You will need GNU Make and gcc.  To compile, run make::
 
@@ -81,13 +82,13 @@ the TODO list.  You will have to put the input in the code yourself.  Currently
 
 
 Optimizations
-=============
+-------------
 
 These optimizations were proposed by Eli Biham in the paper "A Fast New DES
 Implementation in Software".
 
 64-Bit Parallel
----------------
+```````````````
 
 This is a way to do 64 encryptions simultaneously utilizing 64-bit integers.
 
@@ -131,12 +132,12 @@ to zipped format.  Since this is like transposing a matrix, zip_64_bit is its
 own inverse.
 
 Permutation Elimination
------------------------
+```````````````````````
 
 TODO
 
 Bitwise S-Boxes
----------------
+```````````````
 
 Traditionally, s-boxes are implemented with lookup tables.  But s-boxes can
 actually be implemented using nothing but logic gate operations, which is much
