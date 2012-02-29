@@ -14,9 +14,6 @@
  *
  */
 
-#define _BSD_SOURCE 1
-#include <endian.h>  // Endian swapping routines
-
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -257,24 +254,9 @@ static const unsigned char final_permutation[64] = {
     32, 0, 40,  8, 48, 16, 56, 24
 };
 
-void print_uint64(uint64_t input) {
-    input = htobe64(input);
-    unsigned char* ptr = (unsigned char*) &input;
-    printf("0x");
-    for (int i=0; i<8; i++) {
-        printf("%02x", ptr[i]);
-    }
-    printf("\n");
-}
-
 void print_uint64_block(uint64_t inputs[64]) {
     for (int inputnum=0; inputnum<64; inputnum++) {
-        uint64_t input = htobe64(inputs[inputnum]);
-        unsigned char* ptr = (unsigned char*) &input;
-        printf("0x");
-        for (int i=0; i<8; i++) {
-            printf("%02x", ptr[i]);
-        }
+        printf("0x%016llx", inputs[inputnum]);
         if (inputnum == 63) {
             printf("\n");
         } else if (inputnum%8 == 7 && inputnum != 0) {

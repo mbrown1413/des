@@ -8,10 +8,6 @@
  *
  */
 
-#define _BSD_SOURCE 1
-#include <endian.h>  // Endian swapping routines
-
-#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -197,34 +193,6 @@ static const unsigned char key_bit_orders[16][48] = {
     }
 };
 
-static void print_uint64(uint64_t input) {
-    input = htobe64(input);
-    unsigned char* ptr = (unsigned char*) &input;
-    printf("0x");
-    for (int i=0; i<8; i++) {
-        printf("%02x", ptr[i]);
-    }
-    printf("\n");
-}
-
-static void print_uint64_block(const uint64_t inputs[64]) {
-    for (int inputnum=0; inputnum<64; inputnum++) {
-        uint64_t input = htobe64(inputs[inputnum]);
-        unsigned char* ptr = (unsigned char*) &input;
-        printf("0x");
-        for (int i=0; i<8; i++) {
-            printf("%02x", ptr[i]);
-        }
-        if (inputnum == 63) {
-            printf("\n");
-        } else if (inputnum%8 == 7 && inputnum != 0) {
-            printf(",\n");
-        } else {
-            printf(", ");
-        }
-    }
-}
-
 /*
  * Take 64 integers of length 64 and put the ith bit of input[j] into
  * the jth bit of output[i].  Think of this as writing every single bit
@@ -245,6 +213,7 @@ inline static void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
  * most significant 8 bits are ignored).  Consequently, the output is only 56
  * long.  Unlike zip_64_bit, this function is not its own inverse.
  */
+ /* Unused
 static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
     memset(output, 0, 56*8);
     for (int bitnum=8; bitnum<64; bitnum++) {
@@ -253,6 +222,7 @@ static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
         }
     }
 }
+*/
 
 static void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], const int roundnum) {
 
@@ -390,8 +360,9 @@ static void check_key_chunk(const uint64_t plaintext_zipped[64], const uint64_t 
 
 int main(int argc, char** argv) {
 
-    // These keys exclude the 8 unused key bits.  They start out at 0 to 63
-    // (zipped), then the search starting point is added based on argv[1].
+    // Initialize keys to 0 to 63 (zipped).  The search starting point is
+    // added based on argv[1].  Then after every round of 64 decryptions, the
+    // keys are all incremented by 64.
     static uint64_t keys_zipped[56] = {
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
         0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL, 0x0000000000000000LL,
@@ -414,7 +385,7 @@ int main(int argc, char** argv) {
     // will be set to.
     if (argv[1][56-NUM_CHUNK_BITS] != '\0') {
         printf("Incorrect Argument Size!\n");
-        exit(-1);
+        return -1;
     }
     for (int i=0; i<56-NUM_CHUNK_BITS; i++) {
         keys_zipped[i] = (argv[1][i]-48) * 0xffffffffffffffffLL;

@@ -9,4 +9,5 @@
 * Write crack/README.rst
 * Remove some optimizations and clean up des.c; it should be easy to follow,
   not fast.
-* Implement print_uint64 without using htobe64.
+* distproc.py should be fault tolerant.
+* Make running crack/ with distproc easier.
