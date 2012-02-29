@@ -9,3 +9,4 @@
 * Write crack/README.rst
 * Remove some optimizations and clean up des.c; it should be easy to follow,
   not fast.
+* Implement print_uint64 without using htobe64.

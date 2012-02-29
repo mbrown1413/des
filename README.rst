@@ -83,14 +83,74 @@ the TODO list.  You will have to put the input in the code yourself.  Currently
 Optimizations
 =============
 
-64 Bit Zip
-----------
-TODO
+These optimizations were proposed by Eli Biham in the paper "A Fast New DES
+Implementation in Software".
+
+64-Bit Parallel
+---------------
+
+This is a way to do 64 encryptions simultaneously utilizing 64-bit integers.
+
+Consider the normal way to do 64 encryptions at once.  We would store each key,
+plaintext and ciphertext in an array.  Then, every time we do an operation, we
+do it to all 64.  Now consider how one of these values, the key for example, is
+stored.  They would be stored in an array like this:
+
+.. csv-table:: Normal Format
+
+              , Bit 1, Bit 2, Bit 3, Bit 4, Bit 5, ...
+   int64 Key 1,     a,     b,     c,     d,     e, ...
+   int64 Key 2,     f,     g,     h,     i,     j, ...
+   int64 Key 3,     k,     l,     m,     n,     o, ...
+   int64 Key 4,     p,     q,     r,     s,     t, ...
+   int64 Key 5,     u,     v,     w,     x,     y, ...
+           ...,   ...,   ...,   ...,   ...,   ..., ...
+
+Each row contains a key.  We can store each key as a 64-bit integer, so we
+would have an array of 64 integers.  Now suppose we transpose the table above:
+
+.. csv-table:: Zipped Format
+
+              , Key 1, Key 2, Key 3, Key 4, Key 5, ...
+   int64 Bit 1,     a,     f,     k,     p,     u, ...
+   int64 Bit 2,     b,     g,     l,     q,     v, ...
+   int64 Bit 3,     c,     h,     m,     r,     w, ...
+   int64 Bit 4,     d,     i,     n,     s,     x, ...
+   int64 Bit 5,     e,     j,     o,     t,     y, ...
+           ...,   ...,   ...,   ...,   ...,   ..., ...
+
+We store each row in a 64-bit integer, again giving us an array of 64 integers.
+We call this zipped format.  Now instead of looping through each of the 64
+parallel encryptions to do an operation, we can just do the operation on one
+64-bit integer.  For example, Doing an xor with two elements of arrays in this
+format, a single xor instruction will simultaneously do an xor for all 64
+encryptions.
+
+When you see functions like zip_64_bit in the code, these convert from normal
+to zipped format.  Since this is like transposing a matrix, zip_64_bit is its
+own inverse.
 
 Permutation Elimination
 -----------------------
+
 TODO
 
 Bitwise S-Boxes
 ---------------
-TODO
+
+Traditionally, s-boxes are implemented with lookup tables.  But s-boxes can
+actually be implemented using nothing but logic gate operations, which is much
+faster, especially when using the 64-bit parallel optimization.
+
+Finding the optimum logic design of s-boxes is very non-trivial.  A Eli Biham
+talks about this in his paper "A Fast New DES Implementation in Software", but
+Matthew Kwan's page entitled `bitslice <http://www.darkside.com.au/bitslice/>`_
+has much more up to date information, as well as some history.
+
+The fastest implementation I know about is implemented in `John the Ripper
+<http://www.openwall.com/john/>`_.  They actually have
+multiple implementations, and the fastest one is automatically chosen.
+
+This project's bitwise DES s-box implementation can be found in
+``include/sbox.h``, which defines functions s0 through s7.  I didn't come up
+with any designs myself.
