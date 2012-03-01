@@ -1,6 +1,7 @@
 
 import socket
 from select import select
+from collections import defaultdict
 from multiprocessing import AuthenticationError
 from multiprocessing.connection import Listener, Client
 
@@ -12,6 +13,8 @@ class WorkManager(object):
         self.done = False
         self.worker_connections = []
         self.task_iter = iter(self.tasks())
+        self.assigned_tasks = defaultdict(lambda: [])  # Maps connection objects to a list of assigned tasks
+        self.dropped_tasks = []  # Dropped by workers on disconnect
 
         self.listener = Listener((address, port), authkey=authkey)
         self.listener._listener._socket.settimeout(0.0001)  # Set Nonblocking
@@ -24,7 +27,6 @@ class WorkManager(object):
 
                 if not self.done:
                     self.accept_new_clients()
-
                 self.assign_tasks()
 
         except Exception:
@@ -36,7 +38,7 @@ class WorkManager(object):
 
         try:
             connection = self.listener.accept()
-        except AuthenticationError as e:
+        except (AuthenticationError, EOFError) as e:
             print "Client failed to connect:", repr(e)
             connection = None
         except socket.timeout:
@@ -44,8 +46,8 @@ class WorkManager(object):
         if connection:
             # Send two tasks initially.  This way there will always be a task
             # waiting on the worker's side of the connection.
-            connection.send(self.get_task())
-            connection.send(self.get_task())
+            self.assign_task(connection)
+            self.assign_task(connection)
             self.worker_connections.append(connection)
 
     def assign_tasks(self):
@@ -54,24 +56,49 @@ class WorkManager(object):
         for connection in select(self.worker_connections, [], [], 1)[0]:
 
                 # Send new task and process the old results
-                task = self.get_task()
-                connection.send(task)
-                result = connection.recv()
+                result = False
+                try:
+                    result = connection.recv()
+                except (EOFError, IOError):
+                    connections_to_remove.append(connection)
+                    continue
+                self.assign_task(connection)
                 self.tasks_finished += 1
+                self.assigned_tasks[connection].remove(result[0])
                 self.process_result(result)
 
-                if task is False:
-                    self.done = True
+                if self.done:
                     connections_to_remove.append(connection)
 
         for connection in connections_to_remove:
-            self.worker_connections.remove(connection)
+            self.remove_worker(connection)
 
     def get_task(self):
+        if self.dropped_tasks:
+            task = self.dropped_tasks.pop(0)
+            #print "Recovering Task:", task
+            return task
         try:
             return self.task_iter.next()
         except StopIteration:
+            self.done = True
             return False
+
+    def assign_task(self, connection):
+        task = self.get_task()
+        self.assigned_tasks[connection].append(task)
+        try:
+            connection.send(task)
+        except IOError:
+            self.remove_worker(connection)
+            return
+
+    def remove_worker(self, connection):
+        print "Worker", connection.fileno(), "disconnected"
+        #print "Tasks dropped:", self.assigned_tasks[connection]
+        self.dropped_tasks.extend(self.assigned_tasks[connection])
+        self.worker_connections.remove(connection)
+        del self.assigned_tasks[connection]
 
     def tasks(self):
         raise NotImplementedError("A subclass must implement this.")
