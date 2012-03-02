@@ -29,7 +29,7 @@ def check_output(*popenargs, **kwargs):
 class DesWorker(Worker):
 
     def do_task(self, data):
-        print "Doing Task", data
+        print "Checking Prefix:", data
         return check_output(["./check_keys", data])
 
 if __name__ == "__main__":
