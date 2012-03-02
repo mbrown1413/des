@@ -58,7 +58,7 @@ class WorkManager(object):
     def assign_tasks(self):
 
         connections_to_remove = []
-        for connection in select(self.worker_connections, [], [], 1)[0]:
+        for connection in select(self.worker_connections, [], [], 0.1)[0]:
 
                 # Process results
                 result = False
