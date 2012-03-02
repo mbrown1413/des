@@ -91,4 +91,7 @@ if __name__ == "__main__":
     f.write(zip_and_format(processed_ciphertext))
     f.write("\n};")
 
+    # Ending newline may be required for include files
+    f.write("\n")
+
     f.close()
