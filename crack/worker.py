@@ -30,7 +30,7 @@ def check_output(*popenargs, **kwargs):
 class DesWorker(Worker):
 
     def do_task(self, data):
-        print "Checking Prefix:", data
+        self.log("Checking Prefix:", data)
         return check_output(["./check_keys", data])
 
 if __name__ == "__main__":
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                 traceback.print_exc()
                 print "Error probably due to key mismatch"
                 sys.exit()
-            print "Connected to manager at %s:%s" % (address, port)
+            w.log("Connected to manager at %s:%s" % (address, port))
 
             process = Process(target=w.run)
             processes.append(process)

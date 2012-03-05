@@ -3,7 +3,6 @@ import sys
 import re
 import os.path
 from time import time
-from pprint import pprint
 from itertools import imap
 from optparse import OptionParser
 
@@ -44,15 +43,13 @@ class DesWorkManager(WorkManager):
         for task in imap(int_to_bin, xrange(0, 2**(56-self.num_chunk_bits-len(self.prefix)))):
             yield self.prefix + task
 
-    def process_result(self, task_data, result):
+    def process_result(self, worker_id, task_data, result):
         if result:
             self.results.append(result)
-            print "Found match in %.2f seconds: %s" % (time()-self.start_time, result)
+            self.log("==Worker %s== Found match in %.2f seconds: %s" % (worker_id, time()-self.start_time, result))
 
     def finish(self):
-        print "Results:"
-        pprint(self.results)
-
+        self.log("Results:", self.results)
 
 if __name__ == "__main__":
 
@@ -88,6 +85,5 @@ if __name__ == "__main__":
         if char not in '01':
             op.error("Invalid character in prefix: '%s'.  Prefix must be specified in binary, so all characters must be '0' or '1'." % char)
 
-    print "Running Manager on port %s" % port
     w = DesWorkManager(address, port, options.secret, prefix=options.prefix)
     w.run()

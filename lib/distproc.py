@@ -9,9 +9,10 @@ class WorkManager(object):
 
     def __init__(self, address, port, authkey=None):
 
+        self.next_worker_id = 0
         self.tasks_finished = 0
         self.all_tasks_enumerated = False
-        self.worker_connections = []
+        self.worker_ids = {}  # Maps connection objects to worker ids
         self.task_iter = iter(self.tasks())
         self.assigned_tasks = defaultdict(lambda: [])  # Maps connection objects to a list of assigned tasks
         self.dropped_tasks = []  # Dropped by workers on disconnect
@@ -29,7 +30,7 @@ class WorkManager(object):
 
                 # Exit Condition
                 if self.all_tasks_enumerated and \
-                        not self.worker_connections and \
+                        not self.worker_ids and \
                         not self.dropped_tasks:
                     break
 
@@ -42,23 +43,27 @@ class WorkManager(object):
         try:
             connection = self.listener.accept()
         except (AuthenticationError, EOFError) as e:
-            print "Client failed to connect:", repr(e)
+            self.log("Client failed to connect:", repr(e))
             connection = None
         except socket.timeout:
             connection = None
         if connection:
 
+            # Send worker identifier
+            worker_id = self.new_worker_id(connection)
+            self.worker_ids[connection] = worker_id
+            connection.send(worker_id)
+            self.log("Connected", worker=worker_id)
+
             # Send two tasks initially.  This way there will always be a task
             # waiting on the worker's side of the connection.
             self.assign_task(connection)
             self.assign_task(connection)
-            self.worker_connections.append(connection)
-            print "Worker %s Connected" % connection.fileno()
 
     def assign_tasks(self):
 
         connections_to_remove = []
-        for connection in select(self.worker_connections, [], [], 0.1)[0]:
+        for connection in select(self.worker_ids.keys(), [], [], 0.1)[0]:
 
                 # Process results
                 result = False
@@ -72,7 +77,7 @@ class WorkManager(object):
 
                 # Assign task
                 self.assign_task(connection)
-                self.process_result(result[0], result[1])
+                self.process_result(self.worker_ids[connection], result[0], result[1])
 
         for connection in connections_to_remove:
             self.remove_worker(connection)
@@ -102,25 +107,47 @@ class WorkManager(object):
             return
 
     def remove_worker(self, connection):
-        print "Worker", connection.fileno(), "disconnected"
+
+        worker_id = self.worker_ids[connection]
         self.dropped_tasks.extend(self.assigned_tasks[connection])
-        self.worker_connections.remove(connection)
+        del self.worker_ids[connection]
         del self.assigned_tasks[connection]
+        self.log("Disconnected", worker=worker_id)
+
+    def new_worker_id(self, connection):
+        worker_id = self.next_worker_id
+        self.next_worker_id += 1
+        return worker_id
 
     def tasks(self):
         raise NotImplementedError("A subclass must implement this.")
 
-    def process_result(self, result):
+    def process_result(self, worker_id, task_data, result):
         raise NotImplementedError("A subclass must implement this.")
 
     def finish(self):
         pass
+
+    def log(self, *items, **kwargs):
+        worker = kwargs.pop("worker", None)
+        if kwargs:
+            raise ValueError("Unexpected kwargs: %s" % kwargs)
+        if worker is None:
+            identifier = "Manager"
+        else:
+            identifier = "Worker %s" % worker
+        print "== %s ==" % identifier,
+        for item in items:
+            print item,
+        print
+
 
 class Worker(object):
 
     def __init__(self, address, port, authkey=None):
 
         self.connection = Client((address, port), authkey=authkey)
+        self.worker_id = self.connection.recv()
 
     def run(self):
         while True:
@@ -131,6 +158,12 @@ class Worker(object):
 
             result = self.do_task(task_data)
             self.connection.send((task_data, result))
+
+    def log(self, *items):
+        print "== Worker %s ==" % self.worker_id,
+        for item in items:
+            print item,
+        print
 
     def do_task(self, data):
         raise NotImplementedError("A subclass must implement this.")
