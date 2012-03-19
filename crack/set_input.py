@@ -72,11 +72,6 @@ if __name__ == "__main__":
 
     f = open("input.h", 'w')
 
-    f.write("""
-// Number of bits that will be searched.  The least significant NUM_CHUNK_BITS
-// in the key space will be exhaustively searched.  Must be at least 6, since
-// 64 decryptions are done simultaneously.
-""")
     f.write("#define NUM_CHUNK_BITS %d\n\n" % num_chunk_bits)
 
     processed_plaintext = preprocess_plaintext(plaintext)

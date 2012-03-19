@@ -6,6 +6,5 @@
   permutation first, so left and right block can be referenced as 0-31 and
   32-63.
 * Make des.c and des_64.c do both encryption and decryption.
-* Write crack/README.rst
 * Remove some optimizations and clean up des.c; it should be easy to follow,
   not fast.

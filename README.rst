@@ -20,7 +20,8 @@ decryption.  Includes the following:
 * crack/
     Distributed, optimized key search (known plaintext attack).  Takes a known
     plaintext, ciphertext pair and tries every key until one of them works.
-    More information in ``crack/README.rst``
+    More information in `/crack/README.rst
+    <https://github.com/mbrown1413/des/blob/master/crack/README.rst>`_
 
 All implementations except for crack/ are learning tools for DES and
 optimizations.  In contrast, crack/ is fully optimized and not meant for
@@ -134,7 +135,26 @@ own inverse.
 Permutation Elimination
 ```````````````````````
 
-TODO
+Permutations are expensive and DES requires a lot of them.  But we don't
+actually have to permute things in memory in order to compute the result.
+Instead, we can index the bit that would be used if the permutation were
+actually performed.  Biham explains this as "changing the naming of the
+registers."  This includes the expansion step as well.
+
+This is best explained by example.  Consider this pseudocode::
+
+    bit a, b, x, y
+    swap(a, b)
+    x = xor(a, x)
+    y = xor(b, y)
+
+It's pretty obvious the swap is unnecessary::
+
+    bit a, b, x, y
+    x = xor(b, x)
+    y = xor(a, y)
+
+Eliminating permutations is the same idea on a larger scale.
 
 Bitwise S-Boxes
 ```````````````
