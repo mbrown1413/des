@@ -89,7 +89,7 @@ without fear of dropping tasks.
 Running check_keys
 ------------------
 
-As an example, let's make our plaintext be all 0's, and ciphertext be all
+As an example, let's make our plaintext be all 0's, and key be all
 1's::
 
     $ python ../des.py 0000000000000000 ffffffffffffffff
@@ -115,15 +115,14 @@ will recover the full key::
 The first and only argument is the key prefix in binary.  It's not given in hex
 since that would take extra time to parse.
 
-Notice that the output is only 56 bits.  Remember that only 56 bits are used
+Notice that the output is only 56 bits.  Remember that in DES only 56 bits are used
 from a 64-bit key, so that's all ``check_keys`` gives us.  To expand the key to
 64 bits use ``expand_key.py``::
 
     $ python expand_key.py ffffffffffffff
     fefefefefefefefe
 
-The unused bits are filled with zero, which is why the resulting key is
-actually different than the original.  They both of course work the same::
+The unused bits are filled with zero, which is why the resulting key looks different than the original.  They both of course work the same::
 
     $ python ../des.py 0000000000000000 ffffffffffffffff
     caaaaf4deaf1dbae
