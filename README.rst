@@ -28,9 +28,9 @@ optimizations.  In contrast, crack/ is fully optimized and not meant for
 readability, although it is well commented and as readable as it can be without
 sacrificing speed.
 
-The software is licensed under the Unlicense (see LICENSE.txt), so you can
-modify and reuse this code without any restrictions. If you re-use a large part
-of the code, attribution would be nice, but not required.
+The software is licensed under the MIT license (see LICENSE.txt), so you can
+modify and reuse this code without any restrictions. If you re-use a large
+part of the code, attribution would be nice, but not required.
 
 Contributions are welcome!
 
