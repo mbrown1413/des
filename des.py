@@ -163,7 +163,6 @@ def bytes_from_file(filename):
             bits = bittools.ascii_to_bits(byte)
             while len(bits) < 64:
                 bits = bits + [0,0,0,0,0,0,0,0]
-            log(bits)
             bit_rows.append(bits)
     return bit_rows
 
@@ -225,6 +224,8 @@ if __name__ == "__main__":
         elif len(args) > 2:
             op.error("Too many arguments")
         keys = get_keys(args[1])
+    if (options.decrypt):
+        keys.reverse()
 
     # text is plaintext if encrypting or ciphertext if decrypting
     if options.file:
@@ -265,10 +266,6 @@ if __name__ == "__main__":
             else:
                 result += dsa_encrypt(t, key)
 
-        if options.ascii and decrypt:
-            print bittools.bits_to_ascii(result)
-        else:
-            print bittools.bits_to_hex(result)
         if options.file:
             filename = options.file + '.' + str(round) + '.'
             if decrypt:
@@ -277,3 +274,13 @@ if __name__ == "__main__":
                 filename += 'encrypted'
             with open(filename, "wb") as f:
                 f.write(bittools.bits_to_ascii(result))
+
+        # Subsequent rounds are based on the result.
+        text = []
+        for i in range(0, len(result), 64):
+            text.append(result[i:i+64])
+
+    if options.ascii and decrypt:
+        print bittools.bits_to_ascii(result)
+    else:
+        print bittools.bits_to_hex(result)
