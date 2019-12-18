@@ -208,22 +208,6 @@ inline static void zip_64_bit(const uint64_t input[64], uint64_t output[64]) {
     }
 }
 
-/*
- * Like zip_64_bit, except it treats each input as only containing 56 bits (the
- * most significant 8 bits are ignored).  Consequently, the output is only 56
- * long.  Unlike zip_64_bit, this function is not its own inverse.
- */
- /* Unused
-static void zip_56_bit(const uint64_t input[64], uint64_t output[56]) {
-    memset(output, 0, 56*8);
-    for (int bitnum=8; bitnum<64; bitnum++) {
-        for (int blocknum=0; blocknum<64; blocknum++) {
-            output[bitnum-8] |= ((input[blocknum] << bitnum) & 0x8000000000000000LL) >> blocknum;
-        }
-    }
-}
-*/
-
 static void des_feistel(const uint64_t block_bits[64], const uint64_t key_bits[56], uint64_t output[32], const int roundnum) {
 
     const unsigned char* key_bit_order = key_bit_orders[roundnum];
@@ -277,7 +261,7 @@ inline static void des_decrypt(uint64_t ciphertext_bits[64], const uint64_t key_
     static uint64_t feistel_output[32];
     #define ROUND(roundnum) \
         des_feistel(ciphertext_bits, key_bits, feistel_output, roundnum); \
-        for (int i=0; i<=32; i++) { \
+        for (int i=0; i<32; i++) { \
             ciphertext_bits[i + (roundnum%2 * 32)] ^= feistel_output[i]; \
         }
 
@@ -334,7 +318,7 @@ static void check_key_64(const uint64_t plaintext_zipped[64], const uint64_t cip
         zip_64_bit(keys_zipped, temp);
         for (int i=0; i<64; i++) {
             if (~comparison & 0x8000000000000000LL) {
-                printf("0x%014qx\n", temp[i]>>8);
+                printf("0x%014lx\n", temp[i]>>8);
             }
             comparison <<= 1;
         }

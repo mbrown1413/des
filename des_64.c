@@ -256,7 +256,7 @@ static const unsigned char final_permutation[64] = {
 
 void print_uint64_block(uint64_t inputs[64]) {
     for (int inputnum=0; inputnum<64; inputnum++) {
-        printf("0x%016llx", inputs[inputnum]);
+        printf("0x%016lx", inputs[inputnum]);
         if (inputnum == 63) {
             printf("\n");
         } else if (inputnum%8 == 7 && inputnum != 0) {
