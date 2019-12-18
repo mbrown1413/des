@@ -33,7 +33,7 @@ def dsa_substitution_box(half_block):
     result = []
 
     # group_num represents which 6-bit group (out of 8) we are processing.
-    for group_num in xrange(0,8):
+    for group_num in range(0,8):
         index = group_num * 6  # Index into half_block of start of group
         lookup_table = SBOXES[group_num]
         outer_bits = bittools.bits_to_int(half_block[index+0], half_block[index+5])
@@ -71,7 +71,7 @@ def dsa_encrypt(block, key, decrypt=False):
     log("    Permuting into Left and Right keys")
     log("    Left Half  =", bits_to_pretty(key_left))
     log("    Right Half =", bits_to_pretty(key_right))
-    for i in xrange(nrounds):
+    for i in range(nrounds):
         shift_amount = KEY_SHIFT_AMOUNTS[i]
         bittools.left_shift(key_left, shift_amount)
         bittools.left_shift(key_right, shift_amount)
@@ -100,7 +100,7 @@ def dsa_encrypt(block, key, decrypt=False):
     # Rounds
     left_block = block[0:32]
     right_block = block[32:]
-    for i in xrange(nrounds):
+    for i in range(nrounds):
 
         log("Round %s:" % i)
         log("    Input:")

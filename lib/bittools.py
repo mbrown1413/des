@@ -1,6 +1,5 @@
 
 from copy import copy
-from itertools import izip, imap
 
 # ith list contains binary representing i.
 BINARY_4_BIT_LOOKUP = [
@@ -24,7 +23,7 @@ BINARY_4_BIT_LOOKUP = [
 
 def xor(block_a, block_b):
     result = []
-    for item_a, item_b in izip(block_a, block_b):
+    for item_a, item_b in zip(block_a, block_b):
         if item_a == item_b:
             result.append(0)
         else:
@@ -32,7 +31,7 @@ def xor(block_a, block_b):
     return result
 
 def left_shift(block, amount=1):
-    for i in xrange(amount):
+    for i in range(amount):
         block.append(block.pop(0))
 
 def bits_to_int(*bits):
@@ -59,12 +58,12 @@ def bits_to_hex(bits):
     result = []
 
     # Pad to a multiple of 4 bits
-    for i in xrange(len(bits) % 4):
+    for i in range(len(bits) % 4):
         bits.insert(0, 0)
 
     # Convert each 4-bit block to hex
-    for i in xrange(0, len(bits), 4):
-        digit = hex(int(''.join(imap(str, bits[i:i+4])), 2))[2:];
+    for i in range(0, len(bits), 4):
+        digit = hex(int(''.join(map(str, bits[i:i+4])), 2))[2:];
         result.append(digit)
 
     return ''.join(result)
@@ -74,10 +73,10 @@ def bits_to_binary_string(bits, blocksize=4):
     result = []
 
     # Pad to a multiple of blocksize bits
-    for i in xrange(len(bits) % blocksize):
+    for i in range(len(bits) % blocksize):
         bits.insert(0, 0)
 
-    for i in xrange(0, len(bits), blocksize):
+    for i in range(0, len(bits), blocksize):
         block_str = ''.join(map(str, bits[i:i+blocksize]))
         result.append(block_str)
 
@@ -97,7 +96,7 @@ def bits_to_ascii(bits):
 def hex_to_ascii(hex_string):
     assert len(hex_string) % 2 == 0  # Length divisible by 2
     result = []
-    for i in xrange(0, len(hex_string), 2):
+    for i in range(0, len(hex_string), 2):
         first_nibble = int(hex_string[i], 16)
         second_nibble = int(hex_string[i+1], 16)
         byte = 16*first_nibble + second_nibble
@@ -113,6 +112,6 @@ def permute(block, permutation_table):
 
 def invert_permutation(p):
     result = []
-    for i in xrange(len(p)):
+    for i in range(len(p)):
         result.append(p.index(i+1)+1)  # +1's since tables are 1-indexed
     return result

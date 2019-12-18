@@ -26,7 +26,7 @@ def preprocess_ciphertext(bits):
 def zip_and_format(bits):
     result = ""
 
-    zipped = zip(*(bits for i in xrange(64)))
+    zipped = zip(*(bits for i in range(64)))
 
     width = 4
     for i, item in enumerate(zipped):

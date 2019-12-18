@@ -40,7 +40,7 @@ class DesWorkManager(WorkManager):
     def tasks(self):
 
         int_to_bin = lambda x: bin(x)[2:].rjust(56-self.num_chunk_bits-len(self.prefix), '0')
-        for task in imap(int_to_bin, xrange(0, 2**(56-self.num_chunk_bits-len(self.prefix)))):
+        for task in imap(int_to_bin, range(0, 2**(56-self.num_chunk_bits-len(self.prefix)))):
             yield self.prefix + task
 
     def process_result(self, worker_id, task_data, result):
